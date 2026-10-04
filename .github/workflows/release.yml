@@ -14,6 +14,11 @@ on:
       - 'CMakeLists.txt'
       - '.github/workflows/release.yml'
   workflow_dispatch:
+    inputs:
+      with_source:
+        description: "Also build the Source engine games (Half-Life 2, Portal...): about an hour more"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -58,6 +63,12 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: diii4a-arm64
+          max-size: 4G
+
       - name: Setup build environment
         run: |
           sudo apt-get update
@@ -79,6 +90,8 @@ jobs:
 
       - name: Build arm64 with Gradle
         id: arm64
+        env:
+          WITH_SOURCE: ${{ inputs.with_source }}
         run: |
           cd /mnt/diii4a
           arch=arm64-v8a
@@ -88,25 +101,27 @@ jobs:
           # copy 64-bit libraries
           echo "Copy 64-bit libraries"
           cp -rf ${GITHUB_WORKSPACE}/builtin_libs/${arch} Q3E/libs/
-          # build Source only
-          echo "Clean builds"
-          ./gradlew clean $bargs
-          rm -rf Q3E/.cxx Q3E/build idTech4Amm/build
-          echo "disk usage: >>>"
-          df -h
-          du -ch | tail -n -1
-          echo "<<< disk usage"
-          echo "Build Source libraries"
-          bargs="$barch -Pcmake_options=-DGAME_DOOM3=OFF,-DGAME_RTCW=OFF,-DGAME_QUAKE3=OFF,-DGAME_QUAKE2=OFF,-DGAME_QUAKE1=OFF,-DGAME_TDM=OFF,-DGAME_DOOM3BFG=OFF,-DGAME_DOOM=OFF,-DGAME_ETW=OFF,-DGAME_REALRTCW=OFF,-DGAME_FTEQW=OFF,-DGAME_JK=OFF,-DGAME_SERIOUSSAM=OFF,-DGAME_REALRTCW=OFF,-DGAME_URT=OFF,-DGAME_OPENMOHAA=OFF,-DGAME_WOLF3D=OFF,-DGAME_SKINDEEP=OFF"
-          ./gradlew assembleRelease $bargs
-          echo "disk usage: >>>"
-          df -h
-          du -ch | tail -n -1
-          echo "<<< disk usage"
-          echo "Copy Source libraries to libs"
-          cp -f Q3E/build/intermediates/library_jni/release/jni/${arch}/libsource*so ${backup_libs}
-          cp ${backup_libs}/* ${build_libs}/
-          ls ${build_libs}
+          if [ "${WITH_SOURCE}" = "true" ]; then
+            # build Source only
+            echo "Clean builds"
+            ./gradlew clean $bargs
+            rm -rf Q3E/.cxx Q3E/build idTech4Amm/build
+            echo "disk usage: >>>"
+            df -h
+            du -ch | tail -n -1
+            echo "<<< disk usage"
+            echo "Build Source libraries"
+            bargs="$barch -Pcmake_options=-DCMAKE_C_COMPILER_LAUNCHER=ccache,-DCMAKE_CXX_COMPILER_LAUNCHER=ccache,-DGAME_DOOM3=OFF,-DGAME_RTCW=OFF,-DGAME_QUAKE3=OFF,-DGAME_QUAKE2=OFF,-DGAME_QUAKE1=OFF,-DGAME_TDM=OFF,-DGAME_DOOM3BFG=OFF,-DGAME_DOOM=OFF,-DGAME_ETW=OFF,-DGAME_REALRTCW=OFF,-DGAME_FTEQW=OFF,-DGAME_JK=OFF,-DGAME_SERIOUSSAM=OFF,-DGAME_REALRTCW=OFF,-DGAME_URT=OFF,-DGAME_OPENMOHAA=OFF,-DGAME_WOLF3D=OFF,-DGAME_SKINDEEP=OFF"
+            ./gradlew assembleRelease $bargs
+            echo "disk usage: >>>"
+            df -h
+            du -ch | tail -n -1
+            echo "<<< disk usage"
+            echo "Copy Source libraries to libs"
+            cp -f Q3E/build/intermediates/library_jni/release/jni/${arch}/libsource*so ${backup_libs}
+            cp ${backup_libs}/* ${build_libs}/
+            ls ${build_libs}
+          fi
           # build idTech4 only
           echo "Clean builds"
           ./gradlew clean $bargs
@@ -116,7 +131,7 @@ jobs:
           du -ch | tail -n -1
           echo "<<< disk usage"
           echo "Build idTech4"
-          bargs="$barch -Pcmake_options=-DGAME_RTCW=OFF,-DGAME_QUAKE3=OFF,-DGAME_QUAKE2=OFF,-DGAME_QUAKE1=OFF,-DGAME_DOOM=OFF,-DGAME_ETW=OFF,-DGAME_REALRTCW=OFF,-DGAME_FTEQW=OFF,-DGAME_JK=OFF,-DGAME_SERIOUSSAM=OFF,-DGAME_REALRTCW=OFF,-DGAME_URT=OFF,-DGAME_OPENMOHAA=OFF,-DGAME_SOURCE=OFF,-DGAME_WOLF3D=OFF,-DGAME_SKINDEEP=OFF"
+          bargs="$barch -Pcmake_options=-DCMAKE_C_COMPILER_LAUNCHER=ccache,-DCMAKE_CXX_COMPILER_LAUNCHER=ccache,-DGAME_RTCW=OFF,-DGAME_QUAKE3=OFF,-DGAME_QUAKE2=OFF,-DGAME_QUAKE1=OFF,-DGAME_DOOM=OFF,-DGAME_ETW=OFF,-DGAME_REALRTCW=OFF,-DGAME_FTEQW=OFF,-DGAME_JK=OFF,-DGAME_SERIOUSSAM=OFF,-DGAME_REALRTCW=OFF,-DGAME_URT=OFF,-DGAME_OPENMOHAA=OFF,-DGAME_SOURCE=OFF,-DGAME_WOLF3D=OFF,-DGAME_SKINDEEP=OFF"
           ./gradlew assembleRelease $bargs
           echo "disk usage: >>>"
           df -h
@@ -158,7 +173,7 @@ jobs:
           du -ch | tail -n -1
           echo "<<< disk usage"
           echo "Build final apk"
-          bargs="$barch -Pcmake_options=-DGAME_SOURCE=OFF,-DGAME_DOOM3=OFF,-DGAME_DOOM3BFG=OFF,-DGAME_TDM=OFF"
+          bargs="$barch -Pcmake_options=-DCMAKE_C_COMPILER_LAUNCHER=ccache,-DCMAKE_CXX_COMPILER_LAUNCHER=ccache,-DGAME_SOURCE=OFF,-DGAME_DOOM3=OFF,-DGAME_DOOM3BFG=OFF,-DGAME_TDM=OFF"
           ./gradlew assembleRelease $bargs
           echo "disk usage: >>>"
           df -h
