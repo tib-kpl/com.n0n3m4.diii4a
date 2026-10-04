@@ -2693,6 +2693,8 @@ public class GameLauncher extends Activity
 		UpdateGameList();
 		UpdateGameModEditText();
 		UpdateSubDirText();
+		// why the app ended, if it ended without being asked to (a game crashed...)
+		ExitReport.Check(this, PreferenceManager.getDefaultSharedPreferences(this).getString(Q3EPreference.pref_datapath, default_gamedata));
 	}
 
 	public boolean SelectMenuItem(MenuItem item)

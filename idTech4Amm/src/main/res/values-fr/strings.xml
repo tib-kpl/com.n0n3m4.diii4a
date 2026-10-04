@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="exit_report_title">L’application s’est arrêtée</string>
+    <string name="exit_report_message">Le processus de l’application s’est arrêté sans que vous l’ayez demandé (un jeu a planté, ou le système l’a fermée).\n\nRaison : %1$s\n%2$s\n\nLes détails sont dans : %3$s</string>
+</resources>
