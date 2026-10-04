@@ -522,7 +522,7 @@ static unsigned countLinks(int p_socket, NetlinkList *p_netlinkList)
     return l_links;
 }
 
-int getifaddrs(struct ifaddrs **ifap)
+static int netlink_getifaddrs(struct ifaddrs **ifap)
 {
     if(!ifap)
     {
@@ -564,7 +564,7 @@ int getifaddrs(struct ifaddrs **ifap)
     return 0;
 }
 
-void freeifaddrs(struct ifaddrs *ifa)
+static void netlink_freeifaddrs(struct ifaddrs *ifa)
 {
     struct ifaddrs *l_cur;
     while(ifa)
@@ -573,4 +573,53 @@ void freeifaddrs(struct ifaddrs *ifa)
         ifa = ifa->ifa_next;
         free(l_cur);
     }
+}
+
+
+/*
+ * Android's own getifaddrs (in libc since Android 7) is used when there is one: the netlink version
+ * above overflows its buffers on interfaces with long hardware addresses (gretap, erspan, ip6gre...,
+ * which recent kernels have, e.g. on Snapdragon 8 Gen 2 devices), and the engine crashed at start
+ * (in NET_OpenIP). This one stays for older systems.
+ */
+#include <dlfcn.h>
+
+typedef int (*libc_getifaddrs_t)(struct ifaddrs **);
+typedef void (*libc_freeifaddrs_t)(struct ifaddrs *);
+
+static void *libc_symbol(const char *name)
+{
+    void *libc = dlopen("libc.so", RTLD_NOW | RTLD_NOLOAD);
+    return libc ? dlsym(libc, name) : NULL;
+}
+
+int getifaddrs(struct ifaddrs **ifap)
+{
+    static int s_looked;
+    static libc_getifaddrs_t s_libc;
+    if(!s_looked)
+    {
+        s_looked = 1;
+        s_libc = (libc_getifaddrs_t)libc_symbol("getifaddrs");
+    }
+    if(s_libc)
+        return s_libc(ifap);
+    return netlink_getifaddrs(ifap);
+}
+
+void freeifaddrs(struct ifaddrs *ifa)
+{
+    static int s_looked;
+    static libc_freeifaddrs_t s_libc;
+    if(!s_looked)
+    {
+        s_looked = 1;
+        s_libc = (libc_freeifaddrs_t)libc_symbol("freeifaddrs");
+    }
+    if(s_libc && libc_symbol("getifaddrs"))
+    {
+        s_libc(ifa);
+        return;
+    }
+    netlink_freeifaddrs(ifa);
 }
