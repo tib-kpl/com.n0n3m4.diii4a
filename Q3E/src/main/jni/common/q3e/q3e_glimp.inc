@@ -584,9 +584,15 @@ static bool GLES_Init_special(void)
 	EGLConfig eglConfigs[MAX_NUM_CONFIGS];
 	while(1)
 	{
-		if (!eglChooseConfig (eglDisplay, attrib, eglConfigs, MAX_NUM_CONFIGS, &config_count))
+		// no config at all is as bad as an error: a multisampling the driver does not have (e.g.
+		// r_multiSamples 16) gives none, and the window surface then fails with EGL_BAD_CONFIG
+		config_count = 0;
+		if (!eglChooseConfig (eglDisplay, attrib, eglConfigs, MAX_NUM_CONFIGS, &config_count) || config_count <= 0)
 		{
-			Q3E_HandleEGLError("eglChooseConfig", Q3E_FALSE);
+			if(config_count <= 0)
+				Q3E_PRINTF("[Harmattan]: No EGL config with %d samples.\n", multisamples);
+			else
+				Q3E_HandleEGLError("eglChooseConfig", Q3E_FALSE);
 
 			if(multisamples > 1) {
 				multisamples = (multisamples <= 2) ? 0 : (multisamples/2);
