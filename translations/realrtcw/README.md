@@ -33,7 +33,7 @@ place : les titres avec la police du jeu, les phrases d'aide avec Bahnschrift (W
 
     python build_pk3.py
 
-donne `zz_realrtcw_lang.pk3`. La CI le met dans l'APK, qui le copie dans le dossier `Main` du jeu au
+donne `zzz_realrtcw_lang.pk3`. La CI le met dans l'APK, qui le copie dans le dossier `Main` du jeu au
 lancement.
 
 À chaque changement des traductions, augmenter `REALRTCW_LANGUAGE_PACK_VERSION`

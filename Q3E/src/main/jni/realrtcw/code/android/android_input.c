@@ -94,11 +94,21 @@ void Q3E_KeyEvent(int state,int key,int character)
 
 void Q3E_MotionEvent(float dx, float dy)
 {
+	// mouse events are whole pixels: keep the fractions, or a gently pushed stick turns in jerks (or not at all)
+	static float restX = 0.0f, restY = 0.0f;
+	int x, y;
+
 	if (mouseActive)
 	{
-		if (dx != 0.0 || dy != 0.0)
+		restX += dx;
+		restY += dy;
+		x = (int)restX;
+		y = (int)restY;
+		restX -= x;
+		restY -= y;
+		if (x != 0 || y != 0)
 		{
-			Com_QueueEvent(in_eventTime, SE_MOUSE, dx, dy, 0, NULL);
+			Com_QueueEvent(in_eventTime, SE_MOUSE, x, y, 0, NULL);
 		}
 	}
 }

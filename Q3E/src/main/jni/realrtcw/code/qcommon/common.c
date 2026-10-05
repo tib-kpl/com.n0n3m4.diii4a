@@ -2376,7 +2376,11 @@ void Com_Init( char *commandLine ) {
 	// init commands and vars
 	//
 	com_altivec = Cvar_Get ("com_altivec", "1", CVAR_ARCHIVE);
+#ifdef __ANDROID__ //karin: the screen and the gamepad camera run at 60 Hz, 76 fps leaves one frame in five without camera motion
+	com_maxfps = Cvar_Get( "com_maxfps", "60", CVAR_ARCHIVE );
+#else
 	com_maxfps = Cvar_Get( "com_maxfps", "76", CVAR_ARCHIVE );
+#endif
 	com_blood = Cvar_Get( "com_blood", "1", CVAR_ARCHIVE );
 	com_atmosphericEffect = Cvar_Get("com_atmosphericEffect", "", CVAR_ROM);
 

@@ -540,6 +540,20 @@ public class Q3EMain extends Activity
     }
 
     @Override
+    public boolean dispatchKeyEvent(KeyEvent event)
+    {
+        // gamepad buttons go straight to the game: the view hierarchy may eat some of them (the shoulder buttons never reached onKeyDown)
+        if(null != mControlGLSurfaceView && KeyEvent.isGamepadButton(event.getKeyCode()))
+        {
+            if(event.getAction() == KeyEvent.ACTION_DOWN)
+                return event.getRepeatCount() > 0 || onKeyDown(event.getKeyCode(), event);
+            if(event.getAction() == KeyEvent.ACTION_UP)
+                return onKeyUp(event.getKeyCode(), event);
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
+    @Override
     public boolean onKeyDown(int keyCode, KeyEvent event)
     {
         return mControlGLSurfaceView.OnKeyDown(keyCode, event);

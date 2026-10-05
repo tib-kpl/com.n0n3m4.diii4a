@@ -974,6 +974,8 @@ class Q3EGameHelper
         {
             if (overwrite)
             {
+                // the pack was named zz_ before, which the engine never loads (it reads zz_ as sp_)
+                new File(KStr.AppendPath(Q3E.q3ei.datadir, Q3E.q3ei.subdatadir, Q3EGameConstants.GAME_BASE_REALRTCW, "zz_realrtcw_lang.pk3")).delete();
                 DumpExtractResourceVersion(versionFile, version, name);
             }
         }

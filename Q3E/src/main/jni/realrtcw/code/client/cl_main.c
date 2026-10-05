@@ -3772,7 +3772,11 @@ void CL_Init( void ) {
 	m_yaw = Cvar_Get( "m_yaw", "0.022", CVAR_ARCHIVE );
 	m_forward = Cvar_Get( "m_forward", "0.25", CVAR_ARCHIVE );
 	m_side = Cvar_Get( "m_side", "0.25", CVAR_ARCHIVE );
+#ifdef __ANDROID__ //karin: the gamepad camera comes as mouse motion that is not in step with the frames, smooth it
+	m_filter = Cvar_Get( "m_filter", "1", CVAR_ARCHIVE );
+#else
 	m_filter = Cvar_Get( "m_filter", "0", CVAR_ARCHIVE );
+#endif
 
 	j_pitch =        Cvar_Get ("j_pitch",        "200", CVAR_ARCHIVE);
 	j_yaw =          Cvar_Get ("j_yaw",          "-200", CVAR_ARCHIVE);

@@ -223,7 +223,7 @@ public class Q3EPatchResourceManager
                 Q3EGameConstants.REALRTCW_LANGUAGE_PACK_VERSION,
                 Q3EGameConstants.GAME_REALRTCW,
                 null,
-                "pak/realrtcw/zz_realrtcw_lang.pk3",
+                "pak/realrtcw/zzz_realrtcw_lang.pk3",
                 Q3EGameConstants.GAME_BASE_REALRTCW
         );
         resourceList.add(rsc);

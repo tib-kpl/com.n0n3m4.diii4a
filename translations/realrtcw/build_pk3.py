@@ -13,7 +13,7 @@ import sys
 import zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-NAME = 'zz_realrtcw_lang.pk3'
+NAME = 'zzz_realrtcw_lang.pk3'
 LANGUAGES = ('fr',)
 TEXT = ('.txt', '.menu', '.cfg', '.h')
 
