@@ -1,0 +1,80 @@
+// bonus des secrets du jeu de base (traduction française)
+{
+	"bonus_escape1"       "\nVous avez trouvé tous les secrets !\nReçu : ^3Gilet pare-éclats^7"
+	"bonus_escape1_alt"   "\nVous avez trouvé tous les secrets !\nReçu : ^3Gilet pare-éclats^7"
+
+	"bonus_escape2"       "\nVous avez trouvé tous les secrets !\nReçu : ^3M1911 Colt^7"
+	"bonus_escape2_alt"   "\nVous avez trouvé tous les secrets !\nReçu : ^3M1911 Colt^7"
+
+	"bonus_tram"          "\nbonus_tram"
+	"bonus_tram_alt"      "\nbonus_tram_alt"
+
+	"bonus_village1"      "\nVous avez trouvé tous les secrets !\nReçu : ^3Sainte Croix^7"
+	"bonus_village1_alt"  "\nVous avez trouvé tous les secrets !\nReçu : ^3Sainte Croix^7"
+
+	"bonus_crypt1"        "\nVous avez trouvé tous les secrets !\nReçu : ^3Trousse moyenne^7 et ^3Panzerfaust^7"
+	"bonus_crypt1_alt"    "\nVous avez trouvé tous les secrets !\nReçu : ^3Trousse moyenne^7 et ^3Panzerfaust^7"
+
+	"bonus_crypt2"        "\nVous avez trouvé tous les secrets !\nReçu : ^3Trousse moyenne^7 et ^3Sainte Croix^7"
+	"bonus_crypt2_alt"    "\nVous avez trouvé tous les secrets !\nReçu : ^3Trousse moyenne^7 et ^3Sainte Croix^7"
+
+	"bonus_church"        "\nVous avez trouvé tous les secrets !\nReçu : ^3Dynamite^7 et ^3Sainte Croix^7"
+	"bonus_church_alt"    "\nVous avez trouvé tous les secrets !\nReçu : ^3Dynamite^7 et ^3Sainte Croix^7"
+
+	"bonus_boss1"         "\nbonus_boss1"
+	"bonus_boss1_alt"     "\nbonus_boss1_alt"
+
+	"bonus_forest"        "\nVous avez trouvé tous les secrets !\nReçu : ^31938 Latour^7 et ^3Munitions Snooper^7"
+	"bonus_forest_alt"    "\nVous avez trouvé tous les secrets !\nReçu : ^31938 Latour^7 et ^3Munitions Snooper^7"
+
+	"bonus_rocket"        "\nVous avez trouvé tous les secrets !\nReçu : ^3Munitions cal. .45^7"
+	"bonus_rocket_alt"    "\nVous avez trouvé tous les secrets !\nReçu : ^3Munitions cal. .45^7"
+
+	"bonus_baseout"       "\nVous avez trouvé tous les secrets !\nReçu : ^3Gilet pare-éclats^7 et ^3Munitions cal. .45^7"
+	"bonus_baseout_alt"   "\nVous avez trouvé tous les secrets !\nReçu : ^3Gilet pare-éclats^7 et ^3Munitions cal. .45^7"
+
+	"bonus_assault"       "\nbonus_assault"
+	"bonus_assault_alt"   "\nbonus_assault_alt"
+
+	"bonus_sfm"           "\nVous avez trouvé tous les secrets !\nReçu : ^31938 Latour^7 et ^3Munitions cal. .45^7"
+	"bonus_sfm_alt"       "\nVous avez trouvé tous les secrets !\nReçu : ^3Munitions BAR/Garand^7 et ^3Munitions cal. .45^7"
+
+	"bonus_factory"       "\nVous avez trouvé tous les secrets !\nReçu : ^3Santé^7, ^3Casque blindé^7"
+	"bonus_factory_alt"   "\nVous avez trouvé tous les secrets !\nReçu : ^3MP44^7"
+
+	"bonus_trainyard"     "\nVous avez trouvé tous les secrets !\nReçu : ^3Gilet pare-éclats^7, ^3Panzerfaust^7"
+	"bonus_trainyard_alt" "\nVous avez trouvé tous les secrets !\nReçu : ^3Gilet pare-éclats^7, ^3Panzerfaust^7"
+
+	"bonus_swf"           "\nVous avez trouvé tous les secrets !"
+	"bonus_swf_alt"       "\nVous avez trouvé tous les secrets !"
+
+	"bonus_norway"        "\nVous avez trouvé tous les secrets !\nReçu : ^3Bouclier X^7"
+	"bonus_norway_alt"    "\nVous avez trouvé tous les secrets !\nReçu : ^3Bouclier X^7"
+
+	"bonus_xlabs"         "\nVous avez trouvé tous les secrets !\nReçu : ^3Dispositif IEM^7"
+	"bonus_xlabs_alt"     "\nVous avez trouvé tous les secrets !\nReçu : ^3Dispositif IEM^7"
+
+	"bonus_boss2"         "\nbonus_boss2"
+	"bonus_boss2_alt"     "\nbonus_boss2_alt"
+
+	"bonus_dam"           "\nVous avez trouvé tous les secrets !\nReçu : ^3Cal. .30^7"
+	"bonus_dam_alt"       "\nVous avez trouvé tous les secrets !\nReçu : ^3Pistolet HDM^7"
+
+	"bonus_village2"      "\nVous avez trouvé tous les secrets !\nReçu : ^3Lance-flammes^7"
+	"bonus_village2_alt"  "\nVous avez trouvé tous les secrets !\nReçu : ^3Lance-flammes^7"
+
+	"bonus_chateau"       "\nVous avez trouvé tous les secrets !\nReçu : ^3Cal. .30^7"
+	"bonus_chateau_alt"   "\nVous avez trouvé tous les secrets !\nReçu : ^3Cal. .30^7"
+
+	"bonus_dark"          "\nVous avez trouvé tous les secrets !\nReçu : ^3Gilet pare-éclats^7"
+	"bonus_dark_alt"      "\nVous avez trouvé tous les secrets !\nReçu : ^3Gilet pare-éclats^7"
+
+	"bonus_dig"           "\nVous avez trouvé tous les secrets !\nReçu : ^3Sainte Croix^7"
+	"bonus_dig_alt"       "\nVous avez trouvé tous les secrets !\nReçu : ^3Sainte Croix^7"
+
+	"bonus_castle"        "\nVous avez trouvé tous les secrets !\nReçu : ^3Adrénaline M-4^7"
+	"bonus_castle_alt"    "\nVous avez trouvé tous les secrets !\nReçu : ^3Adrénaline M-4^7"
+
+	"bonus_end"           "\nbonus_end"
+	"bonus_end_alt"       "\nbonus_end_alt"
+}
