@@ -215,6 +215,18 @@ public class Q3EPatchResourceManager
                 "etqwbase"
         );
         resourceList.add(rsc);
+
+        // translations (as files) and the menus' language option: the engine reads lang/<code>/ first
+        rsc = new Q3EPatchResource_fileToDir(
+                Q3EGameConstants.PatchResource.REALRTCW_LANGUAGE_PACK,
+                Q3ELang.tr(context, R.string.realrtcw_language_pack),
+                Q3EGameConstants.REALRTCW_LANGUAGE_PACK_VERSION,
+                Q3EGameConstants.GAME_REALRTCW,
+                null,
+                "pak/realrtcw/zz_realrtcw_lang.pk3",
+                Q3EGameConstants.GAME_BASE_REALRTCW
+        );
+        resourceList.add(rsc);
     }
 
     public String Fetch(Q3EGameConstants.PatchResource type, boolean overwrite, String...fsgame)

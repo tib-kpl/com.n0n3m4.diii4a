@@ -2223,7 +2223,7 @@ Used for streaming data out of either a
 separate file or a ZIP file.
 ===========
 */
-long FS_FOpenFileRead(const char *filename, fileHandle_t *file, qboolean uniqueFILE)
+static long FS_FOpenFileReadAnyLanguage(const char *filename, fileHandle_t *file, qboolean uniqueFILE)
 {
 	searchpath_t *search;
 	long len;
@@ -2282,6 +2282,48 @@ long FS_FOpenFileRead(const char *filename, fileHandle_t *file, qboolean uniqueF
 	{
 		return 0;
 	}
+}
+
+/*
+===========
+FS_LanguageDir
+
+port: translations as files. With cl_language set (as RTCW numbers it: 1 French, 2 German,
+3 Italian, 4 Spanish), the texts and menu images are looked for first under lang/<code>/
+(lang/fr/text/text.txt, lang/fr/ui/assets/...), which a pack can provide: the language is then
+chosen in the game's options, and a missing translation falls back to the English file.
+===========
+*/
+static const char *FS_LanguageDir(const char *filename)
+{
+	static const char *codes[] = { NULL, "fr", "de", "it", "es" };
+	int language;
+
+	if (Q_strncmp(filename, "text/", 5) && Q_strncmp(filename, "ui/", 3) && Q_strncmp(filename, "gfx/", 4))
+		return NULL;
+
+	language = Cvar_VariableIntegerValue("cl_language");
+	if (language <= 0 || language >= (int)ARRAY_LEN(codes))
+		return NULL;
+
+	return codes[language];
+}
+
+long FS_FOpenFileRead(const char *filename, fileHandle_t *file, qboolean uniqueFILE)
+{
+	const char *language;
+	char localized[MAX_QPATH];
+	long len;
+
+	if (filename && (language = FS_LanguageDir(filename)) != NULL &&
+		Com_sprintf(localized, sizeof(localized), "lang/%s/%s", language, filename) < (int)sizeof(localized))
+	{
+		len = FS_FOpenFileReadAnyLanguage(localized, file, uniqueFILE);
+		if (file == NULL ? len > 0 : (len >= 0 && *file))
+			return len;
+	}
+
+	return FS_FOpenFileReadAnyLanguage(filename, file, uniqueFILE);
 }
 
 /*

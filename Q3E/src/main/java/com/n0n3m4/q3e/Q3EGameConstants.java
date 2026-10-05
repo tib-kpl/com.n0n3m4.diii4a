@@ -213,7 +213,7 @@ public final class Q3EGameConstants
     public static final String GAME_VERSION_DOOM3BFG = "1.4.0";
     public static final String GAME_VERSION_ZDOOM    = "4.14.3";
     public static final String GAME_VERSION_ETW      = "2.83.2";
-    public static final String GAME_VERSION_REALRTCW = "5.43";
+    public static final String GAME_VERSION_REALRTCW = "5.44c";
     public static final String GAME_VERSION_FTEQW    = "1.05"; // ???
     public static final String GAME_VERSION_JA       = "1.0.1.1";
     public static final String GAME_VERSION_JO       = "1.0.1.1";
@@ -385,6 +385,7 @@ public final class Q3EGameConstants
         ECWOLF_RESOURCE,
         SKINDEEP_GLSL_SHADER,
         ETQW_GLSL_SHADER_EXTRAS,
+        REALRTCW_LANGUAGE_PACK,
     }
 
     // extra internal game file version: <Game engine version>.<idTech4A++ patch version>
@@ -397,6 +398,7 @@ public final class Q3EGameConstants
     public static final String ETW_VERSION                    = GAME_VERSION_ETW + ".1"; // 1: init
     public static final String WOLF3D_VERSION                 = GAME_VERSION_WOLF3D + ".2"; // 1: unuse libretro
     public static final String SKINDEEP_GLSL_SHADER_VERSION   = GAME_VERSION_SKINDEEP + ".1"; // 1: init
+    public static final String REALRTCW_LANGUAGE_PACK_VERSION = GAME_VERSION_REALRTCW + ".1"; // 1: French
     public static final String ETQW_GLSL_SHADER_VERSION       = GAME_VERSION_ETQW + ".6"; // 3: megatexture shadow
 
 

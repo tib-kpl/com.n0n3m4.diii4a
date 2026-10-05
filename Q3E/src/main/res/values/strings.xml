@@ -65,6 +65,7 @@
     <string name="sourceengine_extras">Source Engine extras</string>
     <string name="external">External</string>
     <string name="etlegacy_extras">ET: Legacy extras</string>
+    <string name="realrtcw_language_pack">RealRTCW language pack</string>
     <string name="extract_files_fail">Extract %1$s files fail!</string>
     <string name="ecwolf_builtin_resource">ECWolf built-in resource</string>
     <string name="quit">Quit</string>

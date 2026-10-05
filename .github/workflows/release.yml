@@ -223,6 +223,8 @@ jobs:
           rm -rf Q3E/src/main/jni/source
           rm -rf Q3E/src/main/jni/doom3/neo/[^es]*
           rm -rf Q3E/src/main/jni/doom3bfg
+          # RealRTCW's language pack, extracted to the game folder at launch
+          python3 translations/realrtcw/build_pk3.py Q3E/src/main/assets/pak/realrtcw/zz_realrtcw_lang.pk3
           ./gradlew assembleRelease -Pabifilters=${ARCH} -Pcmake_options=${CCACHE_FLAGS},-DGAME_SOURCE=OFF,-DGAME_DOOM3=OFF,-DGAME_DOOM3BFG=OFF,-DGAME_TDM=OFF,-DGAME_QC=OFF,-DGAME_ICARUS=OFF
           df -h
 

@@ -488,4 +488,5 @@ SURV_DIFFICULTY             "Difficulté de la survie :"
 SURV_DIFFICULTY_NORMAL      "Normale"
 SURV_DIFFICULTY_HARDCORE    "Hardcore"
 SURV_BOSSES                 "Boss :"
+LANGUAGE                    "Langue :"
 }

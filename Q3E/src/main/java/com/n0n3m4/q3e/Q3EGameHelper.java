@@ -960,6 +960,27 @@ class Q3EGameHelper
             ShowMessage(Q3ELang.tr(m_context, R.string.extract_files_fail, name));
     }
 
+    void ExtractRealRTCWLanguagePack()
+    {
+        Q3EGameConstants.PatchResource resource = Q3EGameConstants.PatchResource.REALRTCW_LANGUAGE_PACK;
+
+        Q3EPatchResourceManager manager = new Q3EPatchResourceManager(m_context);
+        final String versionFile = KStr.AppendPath(Q3E.q3ei.datadir, Q3E.q3ei.subdatadir, Q3EGameConstants.GAME_BASE_REALRTCW, "idtech4amm_lang.version");
+        final String version = Q3EGameConstants.REALRTCW_LANGUAGE_PACK_VERSION;
+        String name = Q3ELang.tr(m_context, R.string.realrtcw_language_pack);
+
+        boolean overwrite = CheckExtractResourceOverwrite(versionFile, version, name);
+        if(manager.Fetch(resource, overwrite) != null)
+        {
+            if (overwrite)
+            {
+                DumpExtractResourceVersion(versionFile, version, name);
+            }
+        }
+        else
+            ShowMessage(Q3ELang.tr(m_context, R.string.extract_files_fail, name));
+    }
+
     // KARIN_NEW_GAME_BOOKMARK: add patch resource extract
     void ExtractGameResource()
     {
@@ -981,6 +1002,8 @@ class Q3EGameHelper
             ExtractSkinDeepGLSLShaderSource();
         else if(Q3E.q3ei.isETQW) // GLSL shader and resource patches
             ExtractETQWGLSLShaderAndResource();
+        else if(Q3E.q3ei.isRealRTCW) // language pack
+            ExtractRealRTCWLanguagePack();
     }
 
     private int GetMSAA()
