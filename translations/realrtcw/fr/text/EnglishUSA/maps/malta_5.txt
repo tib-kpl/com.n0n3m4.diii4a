@@ -1,0 +1,147 @@
+{
+"gimme_wp_guy" "^2Sgt Evans"
+
+"course_sarge" "^2Lt McDermott"
+
+"guy_learning_m1" "^2Sdt Lesley"
+
+"table_guard"     "^2Sdt Doyle"
+
+"harbor_patrol1" "^2Cpl Blackwell"
+
+"balcony_guard"  "^2Sgt Lehmkuhl"
+
+"lt"    "^2Lt Wedgwood"
+
+"poor_fella"     "^2Sdt Denny"
+
+"museum_guard1"  "^2Sdt Kautz"
+
+"museum_guard2"  "^2Sgt Jolly"
+
+"medic"          "^2Cpl Hobbins"
+
+"waters"         "^2Sdt Waters"
+
+"street_patrol2" "^2Sgt Crowford"
+
+"hq_guard"       "^2Sgt Wallcroft"
+
+"boss"           "^2Col Redford"
+
+"south_guard"    "^2Cpl Gibson"
+
+"bartender"      "^2Evie"
+
+"flak1_commander" "^2Cne Ingram"
+
+"driver"          "^2Sdt MacMillan"
+
+"doc"             "^2Dr Kovlov"
+
+"south_guard2"    "^2Cpl Gibson"
+
+"bar_guy1"        "^2J. Luyties"
+
+"dream_hunter"      "^1Dream Hunter"
+
+"port_guard2"       "^2Sgt MacTavish"
+
+"port_guard"        "^2Sdt Griffen"
+
+"jack"            "^2Agent de l'OSA"
+
+"agent2"          "^2Agent 2"
+
+"captain_table"     "Capitaine ?"
+
+"stay_post"         "Désolé, capitaine, je dois rester à mon poste."
+
+"anything_sir"      "Vous avez besoin de quelque chose, mon capitaine ?"
+
+"dont_worry_cap"    "On ouvre l'oeil, ne vous inquiétez pas, capitaine."
+
+"england_goods"     "Le colonel dit qu'on va bientôt transporter toute cette marchandise en Angleterre. Il faut juste s'assurer que le ciel est sûr."
+
+"welcome_museum"    "Bienvenue dans notre humble petit musée, capitaine."
+
+"hq_sir"            "Mon capitaine !"
+
+"hq_hq"             "Le quartier général est juste devant, mon capitaine."
+
+"hq_colonel"        "Le colonel devrait être à l'intérieur, capitaine."
+
+"gimmewp_intro"     "Capitaine Blazkowicz, bienvenue au centre d'entraînement."
+
+"gimmewp_justdont"  "Désolé, capitaine. Mais vous ne pouvez pas sortir ces armes du centre."
+
+"gimmewp_lt"        "Le lieutenant McDermott est dans la section suivante. Il vous fera découvrir notre nouveau parcours."
+
+"gimmewp_resupply"  "Pour vous ravitailler, utilisez l'armoire à munitions."
+
+"course_welcome"    "Salut, capitaine. Bon retour sur le parcours."
+
+"course_garbage"    "C'était mieux. Mais ce n'est pas dur de faire mieux que du travail bâclé. On recommence."
+
+"course_horrible"   "Ce n'était pas horrible, mais pas génial non plus."
+
+"course_prettygood" "Ça, c'était sacrément bien ! Beau travail, Blazkowicz !"
+
+"course_seenworse"  "Bien. J'ai vu pire. Mais il reste quelques points à travailler."
+
+"course_ok"        "Pas mal, là-bas. Mais vous avez encore du travail."
+
+"col_blazko?"      "Blazkowicz ?"
+
+"waters_nothing" "Je n'ai rien pour toi, BJ. Si tu veux essayer nos armes, va plutôt au stand de tir."
+
+"drunk_listen" "Hé ! Qu'est-ce que tu fabriques ? J'écoutais ça !"
+
+"bart_name" "Je m'appelle Evie. Je tiens cette taverne du mieux que je peux. Une affaire de famille, vous savez."
+
+"bart_sleep" "Si vous cherchez où dormir, allez plutôt voir l'hôtel de l'autre côté de la rue. Un endroit charmant."
+
+"bart_back" "Qu'est-ce que vous fabriquez ? Écartez-vous du comptoir ! Tout de suite !"
+
+"bart_get" "Qu'est-ce que je vous sers ?"
+
+"bart_beer" "Vous préférez une bière ? Ou quelque chose de plus fort ?"
+
+"medic_captain" "Capitaine ?"
+
+"medic_cant" "Je ne peux pas vraiment parler, là !"
+
+"medic_later" "On peut en discuter plus tard ?"
+
+"medic_middle" "Oh, bonjour capitaine. Je suis en plein travail. Vous pouvez revenir plus tard ?"
+
+"medic_sgt"  "Sergent, je vous en prie, ne bougez pas. Vous ne faites qu'empirer les choses."
+
+"medic_short" "Je manque vraiment de bras, ici."
+
+"agent2_bj" "Qui diable est-ce que... Oh... c'est toi, Blazkowicz..."
+
+"agent2_castle" "Je suis contente que tu sois sorti de ce maudit château, en tout cas."
+
+"agent2_do" "Tu n'as pas des choses à faire ?"
+
+"agent2_dora" "Il y a de grandes chances que je sois affectée à la mission pour détruire Dora. Waters en sera sûrement aussi."
+
+"agent2_fine" "Je vais bien. Je veux juste un peu de calme."
+
+"agent2_frank" "Je n'ai appris que récemment ce qui est arrivé à Frank. C'est vraiment terrible."
+
+"col_nonews" "Pas de nouvelles du quartier général de l'OSA. Vous êtes en permission pour l'instant, Blazkowicz."
+
+"col_stayput" "Ne bougez pas, capitaine. Je suis à peu près sûr que vous recevrez bientôt une nouvelle affectation."
+
+"col_italy" "Vous connaissez la nouvelle ? On a presque chassé Rommel d'Afrique ! J'ai même entendu parler d'une invasion de l'Italie."
+
+"waters_dora" "Tu as déjà entendu parler du canon sur rail Dora ? L'Agent Deux m'a dit que le commandement rassemble une équipe pour le détruire."
+
+"waters_inventory" "Je suis en plein inventaire. Tu peux revenir plus tard ?"
+
+"waters_bj" "Salut, BJ."
+
+
+}

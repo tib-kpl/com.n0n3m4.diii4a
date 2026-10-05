@@ -610,7 +610,18 @@ typedef struct sentity_s
 	qboolean				startLoopingSound;
 } sentity_t;
 
-static sentity_t entityList[MAX_GENTITIES];
+// port: RealRTCW 5.44c loops non-entity ambient sources (speaker scripts) on negative entity numbers,
+// slot -(entityNum)-1 past MAX_GENTITIES (see MAX_AMBIENT_LOOPS), as its snd_openal.c does
+static sentity_t entityList[MAX_GENTITIES + MAX_AMBIENT_LOOPS];
+
+static int S_AL_LoopIndex( int entityNum )
+{
+	if ( entityNum >= 0 )
+		return ( entityNum < MAX_GENTITIES ) ? entityNum : -1;
+	if ( ( -entityNum - 1 ) < MAX_AMBIENT_LOOPS )
+		return MAX_GENTITIES + ( -entityNum - 1 );
+	return -1;
+}
 
 /*
 =================
@@ -1288,7 +1299,7 @@ S_AL_MainStartSound
 Play a one-shot sound effect
 =================
 */
-static void S_AL_MainStartSound( vec3_t origin, int entnum, int entchannel, sfxHandle_t sfx, int flags )
+static void S_AL_MainStartSound( vec3_t origin, int entnum, int entchannel, sfxHandle_t sfx, int flags, int volume )
 {
 	vec3_t sorigin;
 	srcHandle_t src;
@@ -1343,6 +1354,12 @@ static void S_AL_MainStartSound( vec3_t origin, int entnum, int entchannel, sfxH
 	
 	curSource = &srcList[src];
 
+	if ( volume < 255 ) {
+		curSource->curGain *= ( volume > 0 ? volume : 0 ) / 255.0f;
+		curSource->scaleGain = curSource->curGain;
+		S_AL_Gain( curSource->alSource, curSource->curGain );
+	}
+
 	if(!origin)
 		curSource->isTracking = qtrue;
 		
@@ -1361,7 +1378,19 @@ S_AL_StartSound
 */
 static void S_AL_StartSound( vec3_t origin, int entnum, int entchannel, sfxHandle_t sfx )
 {
-	S_AL_MainStartSound( origin, entnum, entchannel, sfx, 0 );
+	S_AL_MainStartSound( origin, entnum, entchannel, sfx, 0, 255 );
+}
+
+/*
+=================
+S_AL_StartSoundVControl
+
+Same as S_AL_StartSound, with a volume (0-255) instead of the full one
+=================
+*/
+static void S_AL_StartSoundVControl( vec3_t origin, int entnum, int entchannel, sfxHandle_t sfx, int volume )
+{
+	S_AL_MainStartSound( origin, entnum, entchannel, sfx, 0, volume );
 }
 
 /*
@@ -1377,7 +1406,7 @@ static void S_AL_StartSoundEx( vec3_t origin, int entnum, int entchannel, sfxHan
 	}
 
 	// RF, make the call now, or else we could override following streaming sounds in the same frame, due to the delay
-	S_AL_MainStartSound( origin, entnum, entchannel, sfx, flags );
+	S_AL_MainStartSound( origin, entnum, entchannel, sfx, flags, 255 );
 }
 
 /*
@@ -1405,21 +1434,23 @@ static void S_AL_SrcLoop( alSrcPriority_t priority, sfxHandle_t sfx,
 		const vec3_t origin, const vec3_t velocity, int entityNum, int volume )
 {
 	int				src;
-	sentity_t	*sent = &entityList[ entityNum ];
+	int				index = S_AL_LoopIndex( entityNum );
+	sentity_t	*sent;
 	src_t		*curSource;
 	vec3_t		sorigin, svelocity;
 
-	if( entityNum < 0 || entityNum >= MAX_GENTITIES )
+	if( index < 0 )
 		return;
+	sent = &entityList[ index ];
 
-	if(S_AL_CheckInput(entityNum, sfx))
+	if(S_AL_CheckInput(index < MAX_GENTITIES ? index : 0, sfx))
 		return;
 
 	// Do we need to allocate a new source for this entity
 	if( !sent->srcAllocated )
 	{
 		// Try to get a channel
-		src = S_AL_SrcAlloc( sfx, priority, entityNum, -1, 0 );
+		src = S_AL_SrcAlloc( sfx, priority, index, -1, 0 );
 		if( src == -1 )
 		{
 			Com_DPrintf( S_COLOR_YELLOW "WARNING: Failed to allocate source "
@@ -1453,7 +1484,7 @@ static void S_AL_SrcLoop( alSrcPriority_t priority, sfxHandle_t sfx,
 	// These lines should be called via S_AL_SrcSetup, but we
 	// can't call that yet as it buffers sfxes that may change
 	// with subsequent calls to S_AL_SrcLoop
-	curSource->entity = entityNum;
+	curSource->entity = index;
 	curSource->isLooping = qtrue;
 
 	if( S_AL_HearingThroughEntity( entityNum ) )
@@ -1526,8 +1557,10 @@ S_AL_StopLoopingSound
 static
 void S_AL_StopLoopingSound(int entityNum )
 {
-	if(entityList[entityNum].srcAllocated)
-		S_AL_SrcKill(entityList[entityNum].srcIndex);
+	int index = S_AL_LoopIndex( entityNum );
+
+	if( index >= 0 && entityList[index].srcAllocated )
+		S_AL_SrcKill(entityList[index].srcIndex);
 }
 
 /*
@@ -2873,6 +2906,7 @@ qboolean S_AL_Init( soundInterface_t *si )
 	si->Shutdown = S_AL_Shutdown;
 	si->StartSound = S_AL_StartSound;
 	si->StartSoundEx = S_AL_StartSoundEx;
+	si->StartSoundVControl = S_AL_StartSoundVControl;
 	si->StartLocalSound = S_AL_StartLocalSound;
 	si->StartBackgroundTrack = S_AL_StartBackgroundTrack;
 	si->StopBackgroundTrack = S_AL_StopBackgroundTrack;

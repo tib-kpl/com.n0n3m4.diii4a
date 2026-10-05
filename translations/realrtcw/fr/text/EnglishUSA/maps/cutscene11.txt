@@ -1,0 +1,17 @@
+{
+"cs11_director_1" "Eh bien, Jack. L'agent Blazkowicz est plein de surprises, c'est indéniable."
+"cs11_jack_1" "En effet, monsieur."
+"cs11_director_2" "Je l'ai toujours su débrouillard, mais je n'aurais jamais imaginé qu'il soit un tel expert en interrogatoire."
+"cs11_jack_clearthroat" " "
+"cs11_director_3" "Grâce à l'interrogatoire de l'officier par BJ, nous connaissons maintenant l'emplacement approximatif des fameux X-Labs de Deathshead en Norvège occupée. Qu'avons-nous appris de notre scientifique transfuge ?"
+"cs11_jack_2" "Malheureusement, moins que je ne l'espérais. Il était très secoué quand nous l'avons récupéré. Et il ne s'en est toujours pas complètement remis. Il ne cessait de parler du projet Über Soldat."
+"cs11_director_4" "Le super-soldat..."
+"cs11_jack_3" "Oui. D'après ce que j'ai pu reconstituer, il s'agit d'une étrange synthèse d'ingénierie robotique et biologique."
+"cs11_director_5" "Dans quel but ?"
+"cs11_jack_4" "Apparemment, créer la machine à tuer ultime."
+"cs11_director_6" "Grand Dieu."
+"cs11_jack_5" "Selon le scientifique, ce projet est le bébé de Deathshead. Ce qui lui tient le plus à coeur. Et il y travaille sous une forme ou une autre depuis 1937."
+"cs11_director_7" "Je suppose que cela explique aussi les plans du Proto-soldat et ces monstruosités bondissantes. Mais cela n'explique toujours pas le lien avec l'occulte."
+"cs11_jack_6" "Non, en effet. Et il n'y a qu'un seul endroit où nous avons des chances de le découvrir."
+"cs11_director_8" "Oui. Et c'est pourquoi l'agent Blazkowicz est en route pour les X-Labs en Norvège, à l'heure où nous parlons."
+}

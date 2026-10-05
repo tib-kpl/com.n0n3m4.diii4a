@@ -1,0 +1,20 @@
+
+
+Testeurs
+^3Peter Beal, Michael Beck, Rami Burpee, Evan Button,
+^3Randolph L. S. d'Amore, Thom Denick, Jeremy
+^3G. Evangelista, Glenn Gregory, Rama Griffith,
+^3Kurt Gutierrez, Kenneth Hartman, Brendan Johnson,
+^3Scott Kiefer, Kirk M. Kosinski, Robert Ladd,
+^3Jane Lee, Joram Manka, Jeffry Moxley,
+^3Garrett Akira Oshiro, Steve Penate, Mihai Pohontu,
+^3Arbel Rom, Jesse Shannon, Jay Sosnicki,
+^3Michael Sparks, John Sweeney, Sami Tanamly,
+^3Da'love Thomas, Adam Tourkow, Chris Wagener,
+^3Mike Wale, Paul Williams, Mark Yao
+
+Chef de l'équipe de nuit
+^3Eric Zimmerman^7
+
+Groupe de publication du code
+^3Brad Saavedra^7

@@ -1,0 +1,149 @@
+{
+"gimme_wp_guy" "^2Sgt Evans"
+
+"course_sarge" "^2Lt McDermott"
+
+"guy_learning_m1" "^2Sdt Lesley"
+
+"table_guard"     "^2Sdt Doyle"
+
+"harbor_patrol1" "^2Cpl Blackwell"
+
+"balcony_guard"  "^2Sgt Lehmkuhl"
+
+"lt"    "^2Lt Wedgwood"
+
+"poor_fella"     "^2Sdt Denny"
+
+"museum_guard1"  "^2Sdt Kautz"
+
+"museum_guard2"  "^2Sgt Jolly"
+
+"medic"          "^2Cpl Hobbins"
+
+"waters"         "^2Sdt Waters"
+
+"street_patrol2" "^2Sgt Crowford"
+
+"hq_guard"       "^2Sgt Wallcroft"
+
+"boss"           "^2Col Redford"
+
+"south_guard"    "^2Cpl Gibson"
+
+"bartender"      "^2Evie"
+
+"flak1_commander" "^2Cne Ingram"
+
+"driver"          "^2Sdt MacMillan"
+
+"doc"             "^2Dr Kovlov"
+
+"south_guard2"    "^2Cpl Gibson"
+
+"bar_guy1"        "^2J. Luyties"
+
+"dream_hunter"      "^1Dream Hunter"
+
+"port_guard2"       "^2Sgt MacTavish"
+
+"port_guard"        "^2Sdt Griffen"
+
+"jack"            "^2Agent de l'OSA"
+
+"captain_table"     "Capitaine ?"
+
+"stay_post"         "Désolé, capitaine, je dois rester à mon poste."
+
+"anything_sir"      "Vous avez besoin de quelque chose, mon capitaine ?"
+
+"dont_worry_cap"    "On ouvre l'oeil, ne vous inquiétez pas, capitaine."
+
+"england_goods"     "Le colonel dit qu'on va bientôt transporter toute cette marchandise en Angleterre. Il faut juste s'assurer que le ciel est sûr."
+
+"welcome_museum"    "Bienvenue dans notre humble petit musée, capitaine."
+
+"hq_sir"            "Mon capitaine !"
+
+"hq_hq"             "Le quartier général est juste devant, mon capitaine."
+
+"hq_colonel"        "Le colonel devrait être à l'intérieur, capitaine."
+
+"gimmewp_intro"     "Capitaine Blazkowicz, bienvenue au centre d'entraînement."
+
+"gimmewp_justdont"  "Désolé, capitaine. Mais vous ne pouvez pas sortir ces armes du centre."
+
+"gimmewp_lt"        "Le lieutenant McDermott est dans la section suivante. Il vous fera découvrir notre nouveau parcours."
+
+"gimmewp_resupply"  "Pour vous ravitailler, utilisez l'armoire à munitions."
+
+"course_welcome"    "Salut, capitaine. Bon retour sur le parcours."
+
+"course_garbage"    "C'était mieux. Mais ce n'est pas dur de faire mieux que du travail bâclé. On recommence."
+
+"course_horrible"   "Ce n'était pas horrible, mais pas génial non plus."
+
+"course_prettygood" "Ça, c'était sacrément bien ! Beau travail, Blazkowicz !"
+
+"course_seenworse"  "Bien. J'ai vu pire. Mais il reste quelques points à travailler."
+
+"course_ok"        "Pas mal, là-bas. Mais vous avez encore du travail."
+
+"col_blazko?"      "Blazkowicz ?"
+
+"waters_nothing" "Je n'ai rien pour toi, BJ. Si tu veux essayer nos armes, va plutôt au stand de tir."
+
+"col_godspeed"   "Bonne chance, capitaine !"
+
+"waters_goodtogo" "OK. Tout a l'air en ordre. Bonne chance !"
+
+"drunk_listen" "Hé ! Qu'est-ce que tu fabriques ? J'écoutais ça !"
+
+"bart_out" "Je m'en fiche ! Dehors !"
+
+"bart_name" "Je m'appelle Evie. Je tiens cette taverne du mieux que je peux. Une affaire de famille, vous savez."
+
+"bart_sleep" "Si vous cherchez où dormir, allez plutôt voir l'hôtel de l'autre côté de la rue. Un endroit charmant."
+
+"bart_back" "Qu'est-ce que vous fabriquez ? Écartez-vous du comptoir ! Tout de suite !"
+
+"bart_get" "Qu'est-ce que je vous sers ?"
+
+"bart_beer" "Vous préférez une bière ? Ou quelque chose de plus fort ?"
+
+"bart_new" "Je ne vous ai jamais vu. Vous êtes nouveau ici ?"
+
+"medic_captain" "Capitaine ?"
+
+"col_elsewhere" "Maintenant, il ne reste plus qu'à s'occuper des derniers adeptes de l'occulte."
+
+"col_elsewhere2" "Si c'était moi qui commandais, je laisserais ces cinglés tranquilles et je les laisserais détruire la machine de guerre allemande de l'intérieur en gaspillant ses précieuses ressources. Mais les ordres viennent d'ailleurs."
+
+"col_end"   "Donc, d'après les renseignements que vous avez obtenus, la cérémonie de résurrection aura lieu près du château de Wolfenstein. Et elle sera dirigée par Marianna Blavatsky en personne." 
+
+"col_end2" "Vous devez arrêter la cérémonie coûte que coûte et éliminer Blavatsky si possible. Comme toujours, le transport vous attend sur l'aérodrome, capitaine. Contactez-nous une fois votre mission terminée. Bonne chance !"
+
+"col_richard" "On devrait peut-être ressusciter Richard Coeur de Lion et le laisser affronter Heinrich ? Voilà qui surprendrait ces psychopathes du paranormal."
+
+"col_rtcw" "Vous auriez cru retourner un jour au château de Wolfenstein ?"
+
+"col_vendetta" "Capitaine ! J'ai entendu dire que la chasse à Deathshead n'avait pas vraiment abouti."
+
+"col_vendetta2" "Mais je suis à peu près sûr que sa réputation est finie. Surtout après que vous avez détruit à vous seul son prétendu Super-soldat."
+
+"col_wolfenstein" "Équipez-vous correctement. Ne vous attendez pas à un combat facile. Wolfenstein est la dernière citadelle de la Division paranormale."
+
+"waters_gl_end" "Bonne chance."
+
+"waters_riptear" "On y est, je crois ! L'heure de tout casser ! On ne sait pas vraiment ce qui t'attend, alors mieux vaut ne prendre aucun risque."
+
+"waters_anywill" "Quel que soit l'équipement que tu choisis, il devrait suffire à pulvériser tout ce qui pourrait se dresser sur ton chemin."
+
+"medic_last"  "Capitaine ! J'ai le plaisir de vous annoncer que la dernière version de la seringue d'adrénaline est prête. Elle est juste là, sur la table."
+
+"medic_leave" "C'est un peu triste que le docteur Kovlov s'en aille. C'était un mentor brillant, vous savez."
+
+"medic_ropes" "Le docteur Kovlov m'a appris les ficelles du métier. Je devrais pouvoir gérer cette infirmerie sans problème."
+
+
+}

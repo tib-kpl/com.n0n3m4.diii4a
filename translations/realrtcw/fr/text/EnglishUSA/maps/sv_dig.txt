@@ -1,0 +1,24 @@
+{
+
+"grenades_buy" "Grenades"
+
+"buy_armor"       "Armure"
+
+"buy_random_box"  "Arme au hasard"
+
+"reinforce_buy"  "Appeler des renforts"
+
+"randomperk_buy"  "Atout au hasard"
+
+"reinforce_buy"  "Appeler des renforts"
+
+"trap_buy"   "Piège à flammes"
+
+"buy_ammo"       "Munitions"
+
+"buy_mp44"       "MP44"
+
+"buy_bar"        "BAR"
+
+"weapon_upgrade_buy" "Améliorer l'arme"
+}

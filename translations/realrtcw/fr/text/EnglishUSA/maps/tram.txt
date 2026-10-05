@@ -1,0 +1,12 @@
+{
+"Tram_Station1" "Poste de garde du téléphérique, au rapport ! Poste de garde du téléphérique ! Que se passe-t-il ?"
+"sound/scenaric/tram/ast_1.wav" "Poste de garde du téléphérique, au rapport ! Poste de garde du téléphérique ! Que se passe-t-il ?"
+"Tram_Kesler1" "Oui, ici le lieutenant Rueger. La situation est sous contrôle."
+"Tram_Station2" "Ah... Et l'Américain ?"
+"sound/scenaric/tram/ast_2.wav" "Ah... Et l'Américain ?"
+"Tram_Kesler2" "Mort..."
+"Tram_Station3" "Excellent ! Poste de garde du village, terminé."
+"sound/scenaric/tram/ast_3.wav" "Excellent ! Poste de garde du village, terminé."
+"Tram_Kesler3" "Ne tirez pas ! Je suis Kessler !"
+"Tram_Kesler4" "Suivez-moi. Nous devons vous faire entrer dans le village."
+}

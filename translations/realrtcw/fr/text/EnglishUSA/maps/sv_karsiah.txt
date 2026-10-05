@@ -1,0 +1,20 @@
+{
+
+"grenades_buy" "Grenades"
+
+"buy_armor"       "Armure"
+
+"buy_random_box"  "Arme au hasard"
+
+"randomperk_buy"  "Atout au hasard"
+
+"reinforce_buy"  "Appeler des renforts"
+
+"trap_buy"   "Piège à flammes"
+
+"buy_ammo"       "Munitions"
+
+"weapon_upgrade_buy" "Améliorer l'arme"
+
+"mg42_buy" "MG42"
+}

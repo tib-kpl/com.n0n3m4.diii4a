@@ -1,0 +1,14 @@
+{
+"gimme_wp_guy" "^2Sgt Evans"
+"course_sarge" "^2Lt McDermott"
+"gimmewp_intro"     "Capitaine Blazkowicz, bienvenue au centre d'entraînement."
+"gimmewp_justdont"  "Désolé, capitaine. Mais vous ne pouvez pas sortir ces armes du centre."
+"gimmewp_lt"        "Le lieutenant McDermott est dans la section suivante. Il vous fera découvrir notre nouveau parcours."
+"gimmewp_resupply"  "Pour vous ravitailler, utilisez l'armoire à munitions."
+"course_welcome"    "Salut, capitaine. Bon retour sur le parcours."
+"course_garbage"    "C'était mieux. Mais ce n'est pas dur de faire mieux que du travail bâclé. On recommence."
+"course_horrible"   "Ce n'était pas horrible, mais pas génial non plus."
+"course_prettygood" "Ça, c'était sacrément bien ! Beau travail, Blazkowicz !"
+"course_seenworse"  "Bien. J'ai vu pire. Mais il reste quelques points à travailler."
+"course_ok"        "Pas mal, là-bas. Mais vous avez encore du travail."
+}

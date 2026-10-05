@@ -1,0 +1,16 @@
+^1RTCW (INSTALLATION)^7
+
+Scripts d'installation
+^3Drew Petterson^7
+
+Programmation de l'installation
+^3Alex Roha^7
+
+Illustrateur
+^3Craig Mullins^7
+
+
+^1RTCW (ASSURANCE QUALITÉ)^7
+
+Chefs de projet AQ
+^3Glenn Vistante, Juan Valdes^7

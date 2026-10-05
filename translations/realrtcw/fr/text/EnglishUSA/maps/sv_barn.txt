@@ -1,0 +1,42 @@
+{
+
+"second_chance_buy" "Résurrection"
+
+"grenades_buy" "Grenades"
+
+"marathon_buy" "Marathon"
+
+"buy_bar" "BAR"
+
+"fasthands_buy" "Mains agiles"
+
+"buy_mp40"      "MP40"
+
+"buy_snooper"    "Fusil Snooper"
+
+"snipers_buy"    "Appeler des tireurs d'élite"
+
+"buy_scavenger" "Pilleur"
+
+"buy_regen"     "Résistance"
+
+"buy_ithaca"      "Fusil à pompe"
+
+"buy_m1garand"      "M1 Garand"
+
+"doubleshot_buy"  "Double tir"
+
+"buy_armor"       "Armure"
+
+"buy_flametrap"   "Piège à flammes"
+
+"buy_random_box"  "Arme au hasard"
+
+"reinforce_buy"  "Appeler des renforts"
+
+"buy_ammo"       "Munitions"
+
+"buy_browning"  "Mitrailleuse Browning"
+
+"weapon_upgrade_buy" "Améliorer l'arme"
+}

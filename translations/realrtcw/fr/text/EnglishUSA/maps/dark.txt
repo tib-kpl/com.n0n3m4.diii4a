@@ -1,0 +1,10 @@
+{
+"blank" " "
+"dk_cs15_eli_01_3" "Bien. Madame Blavatsky va commencer la cérémonie d'un instant à l'autre. Dès qu'elle aura commencé, ne regardez surtout pas en direction des ruines."
+"dk_cs15_sol_01_3" "Que... Que se passera-t-il si nous..."
+"dk_cs15_eli_02_2" "Si vous regardez ? Eh bien, d'abord votre sang se mettra à bouillir. Et ensuite... Ensuite, ça n'a plus vraiment d'importance, ja ?"
+"dk_cs15_eli_03" "Restez à votre poste ici, et veillez à ce que le courant ne soit pas coupé. Compris ?"
+"dk_cs15_sol_02" "Jawohl !"
+"dk_cs15_sol2_01" "Jawohl !"
+"dk_earth_rumble" " "
+}

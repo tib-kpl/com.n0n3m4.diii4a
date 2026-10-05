@@ -1,0 +1,10 @@
+{
+"boss2_breathe" " "
+"b2_deathshead01" "Eh bien, l'agent Blazkowicz, c'est cela ? Vous êtes un spécimen tout à fait impressionnant. J'aurai le plaisir de vous disséquer morceau par morceau. Permettez-moi de vous présenter quelqu'un. Ne le confondez pas avec les simples prototypes que vous avez rencontrés. Voici l'aboutissement de toutes mes recherches. Das Über Soldat. Le Super-soldat."
+"b2_deathshead02" "J'aurai le plaisir de le regarder vous détruire."
+"b2_alltaunts" " "
+"b2_losing3" "Nous nous reverrons un jour !"
+"b2_losing1" "Mais comment ?!"
+"b2_losing2" "Quoi !? C'est impossible !"
+"boss2_takeoff" " "
+}

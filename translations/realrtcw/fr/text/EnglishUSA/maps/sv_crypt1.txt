@@ -1,0 +1,38 @@
+{
+
+"second_chance_buy" "Résurrection"
+
+"grenades_buy" "Grenades"
+
+"marathon_buy" "Marathon"
+
+"fasthands_buy" "Mains agiles"
+
+"buy_scavenger" "Pilleur"
+
+"buy_regen"     "Résistance"
+
+"doubleshot_buy"  "Double tir"
+
+"buy_armor"       "Armure"
+
+"trap_buy"   "Piège à flammes"
+
+"buy_random_box"  "Arme au hasard"
+
+"reinforce_buy"  "Appeler des renforts"
+
+"buy_mp34"   "MP34"
+
+"buy_mp44"   "MP44"
+
+"buy_mp40"       "MP-40"
+
+"buy_fg42"       "FG-42"
+
+"buy_m97"        "Fusil à pompe"
+
+"weapon_upgrade_buy" "Améliorer l'arme"
+
+"buy_ammo"          "Munitions"
+}

@@ -1,0 +1,40 @@
+{
+
+"grenades_buy" "Grenades"
+
+"buy_armor"       "Armure"
+
+"buy_random_box"  "Arme au hasard"
+
+"randomperk_buy"  "Atout au hasard"
+
+"reinforce_buy"  "Renforcer la base"
+
+"buy_flametrap"   "Piège à flammes"
+
+"buy_ammo"       "Munitions"
+
+"weapon_upgrade_buy" "Améliorer l'arme"
+
+"mg42_buy" "MG42"
+
+"mp44_buy" "MP44"
+
+"mp40_buy" "MP40"
+
+"secret_door" "Ouvrir le labo"
+
+"res_buy"     "Résurrection"
+
+"second_chance_buy" "Résurrection"
+
+"marathon_buy" "Marathon"
+
+"fasthands_buy" "Mains agiles"
+
+"buy_scavenger" "Pilleur"
+
+"buy_regen"     "Résistance"
+
+"doubleshot_buy"  "Double tir"
+}

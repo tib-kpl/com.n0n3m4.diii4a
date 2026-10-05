@@ -1,0 +1,175 @@
+{
+"gimme_wp_guy" "^2Sgt Evans"
+
+"course_sarge" "^2Lt McDermott"
+
+"guy_learning_m1" "^2Sdt Lesley"
+
+"table_guard"     "^2Sdt Doyle"
+
+"harbor_patrol1" "^2Cpl Blackwell"
+
+"balcony_guard"  "^2Sgt Lehmkuhl"
+
+"shouting_lt"    "^2Lt Wedgwood"
+
+"poor_fella"     "^2Sdt Denny"
+
+"museum_guard1"  "^2Sdt Kautz"
+
+"museum_guard2"  "^2Sgt Jolly"
+
+"medic"          "^2Cpl Hobbins"
+
+"waters"         "^2Sdt Waters"
+
+"street_patrol2" "^2Sgt Crowford"
+
+"hq_guard"       "^2Sgt Wallcroft"
+
+"boss"           "^2Col Redford"
+
+"south_guard"    "^2Cpl Gibson"
+
+"bartender"      "^2Evie"
+
+"flak1_commander" "^2Cne Ingram"
+
+"driver"          "^2Sdt MacMillan"
+
+"doc"             "^2Dr Kovlov"
+
+"south_guard2"    "^2Cpl Gibson"
+
+"bar_guy1"        "^2J. Luyties"
+
+"dream_hunter"      "^1Dream Hunter"
+
+"port_guard2"       "^2Sgt MacTavish"
+
+"port_guard"        "^2Sdt Griffen"
+
+"jack"            "^2Agent de l'OSA"
+
+"captain_table"     "Capitaine ?"
+
+"stay_post"         "Désolé, capitaine, je dois rester à mon poste."
+
+"anything_sir"      "Vous avez besoin de quelque chose, mon capitaine ?"
+
+"dont_worry_cap"    "On ouvre l'oeil, ne vous inquiétez pas, capitaine."
+
+"england_goods"     "Le colonel dit qu'on va bientôt transporter toute cette marchandise en Angleterre. Il faut juste s'assurer que le ciel est sûr."
+
+"welcome_museum"    "Bienvenue dans notre humble petit musée, capitaine."
+
+"hq_sir"            "Mon capitaine !"
+
+"hq_hq"             "Le quartier général est juste devant, mon capitaine."
+
+"hq_colonel"        "Le colonel devrait être à l'intérieur, capitaine."
+
+"gimmewp_intro"     "Capitaine Blazkowicz, bienvenue au centre d'entraînement."
+
+"gimmewp_justdont"  "Désolé, capitaine. Mais vous ne pouvez pas sortir ces armes du centre."
+
+"gimmewp_lt"        "Le lieutenant McDermott est dans la section suivante. Il vous fera découvrir notre nouveau parcours."
+
+"gimmewp_resupply"  "Pour vous ravitailler, utilisez l'armoire à munitions."
+
+"course_welcome"    "Salut, capitaine. Bon retour sur le parcours."
+
+"course_garbage"    "C'était mieux. Mais ce n'est pas dur de faire mieux que du travail bâclé. On recommence."
+
+"course_horrible"   "Ce n'était pas horrible, mais pas génial non plus."
+
+"course_prettygood" "Ça, c'était sacrément bien ! Beau travail, Blazkowicz !"
+
+"course_seenworse"  "Bien. J'ai vu pire. Mais il reste quelques points à travailler."
+
+"course_ok"        "Pas mal, là-bas. Mais vous avez encore du travail."
+
+"col_blazko?"      "Blazkowicz ?"
+
+"waters_nothing" "Je n'ai rien pour toi, BJ. Si tu veux essayer nos armes, va plutôt au stand de tir."
+
+"col_godspeed"   "Bonne chance, capitaine !"
+
+"drunk_listen" "Hé ! Qu'est-ce que tu fabriques ? J'écoutais ça !"
+
+"bart_name" "Je m'appelle Evie. Je tiens cette taverne du mieux que je peux. Une affaire de famille, vous savez."
+
+"bart_sleep" "Si vous cherchez où dormir, allez plutôt voir l'hôtel de l'autre côté de la rue. Un endroit charmant."
+
+"bart_back" "Qu'est-ce que vous fabriquez ? Écartez-vous du comptoir ! Tout de suite !"
+
+"bart_get" "Qu'est-ce que je vous sers ?"
+
+"bartender_welcome" "Bienvenue au One Eyed Jack ! Qu'est-ce que je vous sers ?"
+
+"bart_beer" "Vous préférez une bière ? Ou quelque chose de plus fort ?"
+
+"bart_new" "Je ne vous ai jamais vu. Vous êtes nouveau ici ?"
+
+"medic_captain" "Capitaine ?"
+
+"waters_inventory_2" "Hé, BJ ! Je suis un peu occupé là. Le colonel m'a soudain ordonné de faire l'inventaire de toutes les armes. L'équipement que tu veux est juste ici."
+
+"waters_inventory_22" "Il devrait convenir aux combats à moyenne portée qui t'attendent dans les rues bombardées."
+
+"waters_swf" "Jette un bon coup d'oeil dans ce centre d'armement où tu vas, d'accord ?"
+
+"waters_fg42" "Je voulais encore te remercier pour ce FG42 que tu as rapporté. Ils sont plutôt rares."
+
+"waters_okay" "OK, tout a l'air en ordre !"
+
+"col_cobra_debrief" "Capitaine ! Félicitations pour votre dernière mission. Poser le Kobra n'a sûrement pas été facile. Nos spécialistes l'ont déjà étudié et démonté."
+
+"col_cobra_debrief2" "Ça pourrait bien faire tourner le vent de la guerre en notre faveur ! Ou au moins l'empêcher de tourner en faveur des Allemands."
+
+"col_kugel" "Passons aux affaires urgentes. Des membres du Cercle de Kreisau à Kugelstadt essaient de faire sortir du pays un transfuge allemand."
+
+"col_kugel2" "Votre mission : les aider et trouver une entrée du centre d'armes secrètes."
+
+"col_kugel3" "La ville subit en ce moment des bombardements alliés. Vous pourriez en profiter comme diversion. Je crois que c'est tout. Le transport de l'OSA vous attend sur l'aérodrome."
+
+"col_defector" "J'espère que ce transfuge en vaut vraiment la peine."
+
+"col_health" "Vous êtes passé à l'infirmerie ? Un bilan de santé ne vous fera pas de mal."
+
+"jack_spy" "Blazkowicz ! Je suis content que vous ayez reçu mon message. Je suis là pour une courte visite. Le directeur m'a demandé de vous informer personnellement."
+
+"jack_spy2" "Le réseau de l'OSA a été compromis. Nous pensons qu'un agent allemand opère à Londres ou à Malte."
+
+"jack_spy3" "Une enquête interne est en cours. Ce n'est qu'une question de temps avant que nous trouvions cet espion et ses objectifs."
+
+"jack_spy4" "Mais d'ici là... Nous vous demandons d'être extrêmement prudent. Ne vous liez avec personne ici."
+
+"jack_spy5" "Nous avons déjà perdu deux agents à cause de cette fuite et nous n'avons pas l'intention d'en perdre d'autres."
+
+"jack_gl"   "Bonne chance pour votre prochaine mission !"
+
+"jack_way"  "Vous devriez vous mettre en route !"
+
+"jack_all" "C'est tout ce que j'avais à dire pour l'instant."
+
+"bart_leaving" "Hé, l'ami. Tu comptes partir bientôt ? Je voudrais fermer tôt aujourd'hui."
+
+"bart_another" "Oh, génial. Encore un."
+
+"drunk_min"    "D'accord, laisse-moi juste finir ce verre, OK ?"
+
+"doc_cant" "Vous ne voyez pas que je suis occupé ?"
+
+"doc_myself" "Non, vous ne pouvez pas m'aider. Je le trouverai tout seul !"
+
+"doc_off"    "Lâchez-moi !"
+
+"doc_heycap" "Oh, bonjour capitaine ! Je viens de perdre quelque chose de très important pour moi. Ça doit être quelque part par ici. Ne vous en faites pas, je m'en occupe, vous pouvez y aller."
+
+"medic_left" "Le docteur Kovlov est parti se promener. Il m'a confié l'infirmerie. Alors... si vous avez besoin de quoi que ce soit, je suis là."
+
+"medic_weird" "Le docteur Kovlov se comporte bizarrement ces temps-ci. Je ne sais pas ce qui lui prend."
+
+"medic_picture" "Vous avez vu ce tableau bizarre dans sa chambre ? Il me donne la chair de poule à chaque fois."
+}

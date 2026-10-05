@@ -1,3 +1,8 @@
+// idTech4A++: keys used by its menus that RealRTCW's text.txt doesn't have
 {
 LANGUAGE                    "Language:"
+SURV_SCORE                  "POINTS"
+SURV_WAVE                   "WAVE"
+SURV_KILLS                  "KILLS"
+GM_MIDGAME_HUB              "Malta Hub"
 }

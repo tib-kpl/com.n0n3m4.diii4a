@@ -1,0 +1,10 @@
+{
+"SWFNazi1_1" "Ah, wunderbar ! Vous avez enfin réparé l'ascenseur ?"
+"SWFLab3_1" "Au secours ! Laissez-moi entrer ! Ces choses se sont échappées !"
+"SWFdeath_1" "Major ! Pourquoi ne sommes-nous pas encore prêts à partir ?"
+"SWFmajor_1" "Toutes mes excuses, Herr Oberführer, mais le chargement des nouvelles torpilles prend plus de temps que prévu."
+"SWFdeath_2" "Je n'ai pas de temps à perdre avec ces bêtises ! J'ai des affaires importantes à régler. Ce sous-marin part pour les X-Labs d'ici une heure. Torpilles ou pas. C'est compris, major ?"
+"SWFmajor_2" "Parfaitement, Herr Oberführer !"
+"SWFSub_1" "Je ne vous dirai rien !"
+"SWFSub_2" "Ils vont en Norvège ! Les coordonnées sont 67 degrés nord, 16 degrés est !"
+}

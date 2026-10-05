@@ -1,0 +1,10 @@
+^1IORTCW^7
+
+Maintenance
+^3Donny Springer, Zack Middleton, James Canete^7
+
+Contributions
+^3Ryan C. Gordon, Andreas Kohn, Joerg Dietrich,^7
+^3Stuart Dalton, Vincent S. Cojot, optical,^7
+^3Aaron Gyes, Ludwig Nussel, Thilo Schulz,^7
+^3Tim Angus, Tony J. White, Zachary J. Slater^7

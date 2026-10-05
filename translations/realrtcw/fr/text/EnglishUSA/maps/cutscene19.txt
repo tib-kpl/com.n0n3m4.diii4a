@@ -1,0 +1,13 @@
+{
+"cs19_director_1" "Entrez."
+"cs19_jack_1" "Vous vouliez me voir, monsieur ?"
+"cs19_director_2" "Eh bien, je viens de finir de lire les derniers rapports. J'ai encore du mal à y croire..."
+"cs19_director_3" "Bien, je suppose que nous pouvons refermer le dossier de l'opération Résurrection, vous ne croyez pas ?"
+"cs19_jack_2" "Oui, monsieur."
+"cs19_director_4" "Jack, je pense que l'agent Blazkowicz mérite une médaille pour ce qu'il a fait. Mais étant donné que cette mission n'a jamais officiellement existé..."
+"cs19_jack_3" "Je suis sûr qu'il comprend, monsieur."
+"cs19_director_5" "J'espère au moins qu'il profite d'un repos bien mérité."
+"cs19_jack_4" "Oh, oui. Il est en petite permission en ce moment même."
+"cs19_director_6" "Excellent, excellent. Quelque chose de spécial ?"
+"cs19_soldiers_running" " "
+}

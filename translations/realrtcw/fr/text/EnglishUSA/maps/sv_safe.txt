@@ -1,0 +1,40 @@
+{
+
+"grenades_buy" "Grenades"
+
+"buy_armor"       "Armure"
+
+"buy_random_box"  "Arme au hasard"
+
+"randomperk_buy"  "Atout au hasard"
+
+"reinforce_buy"  "Appeler des renforts spéciaux"
+
+"buy_ammo"       "Munitions"
+
+"buy_weapon_upgrade" "Améliorer l'arme"
+
+"tommy_buy"        "Thompson"
+
+"venom_buy"        "Canon Venom"
+
+"buy_ithaca"       "Fusil à pompe"
+
+"buy_mp44"        "MP44"
+
+"ppsh_buy"       "PPSH"
+
+"garand_buy"     "M1 Garand"
+
+"second_chance_buy" "Résurrection"
+
+"marathon_buy" "Marathon"
+
+"fasthands_buy" "Mains agiles"
+
+"buy_scavenger" "Pilleur"
+
+"buy_regen"     "Résistance"
+
+"doubleshot_buy"  "Double tir"
+}

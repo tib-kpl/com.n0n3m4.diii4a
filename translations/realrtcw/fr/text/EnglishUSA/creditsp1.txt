@@ -1,0 +1,24 @@
+^1REALRTCW 5.4^7
+
+^3Développeur principal^7
+WolfETPlayer
+
+^3Contributions au code^7
+Eugeny Panikarowsky
+Bud Byrd
+ryven
+Berserker
+1NTERRUPTOR
+Roman Simurin
+Tarator
+C-ColinTH
+
+^3Modèles^7
+Artem Kuznetsov
+Vladislav Kulikov
+CR!STALLL
+New World Interactive
+
+^3Animations^7
+HzerF
+Yo$hik

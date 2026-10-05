@@ -1,0 +1,159 @@
+{
+"gimme_wp_guy" "^2Sgt Evans"
+
+"course_sarge" "^2Lt McDermott"
+
+"guy_learning_m1" "^2Sdt Lesley"
+
+"table_guard"     "^2Sdt Doyle"
+
+"harbor_patrol1" "^2Cpl Blackwell"
+
+"balcony_guard"  "^2Sgt Lehmkuhl"
+
+"shouting_lt"    "^2Lt Wedgwood"
+
+"poor_fella"     "^2Sdt Denny"
+
+"museum_guard1"  "^2Sdt Kautz"
+
+"museum_guard2"  "^2Sgt Jolly"
+
+"medic"          "^2Cpl Hobbins"
+
+"waters"         "^2Sdt Waters"
+
+"street_patrol2" "^2Sgt Crowford"
+
+"hq_guard"       "^2Sgt Wallcroft"
+
+"boss"           "^2Col Redford"
+
+"south_guard"    "^2Cpl Gibson"
+
+"bartender"      "^2Evie"
+
+"flak1_commander" "^2Cne Ingram"
+
+"driver"          "^2Sdt MacMillan"
+
+"doc"             "^2Dr Kovlov"
+
+"south_guard2"    "^2Cpl Gibson"
+
+"bar_guy1"        "^2J. Luyties"
+
+"dream_hunter"      "^1Dream Hunter"
+
+"port_guard2"       "^2Sgt MacTavish"
+
+"port_guard"        "^2Sdt Griffen"
+
+"captain_table"     "Capitaine ?"
+
+"stay_post"         "Désolé, capitaine, je dois rester à mon poste."
+
+"anything_sir"      "Vous avez besoin de quelque chose, mon capitaine ?"
+
+"dont_worry_cap"    "On ouvre l'oeil, ne vous inquiétez pas, capitaine."
+
+"england_goods"     "Le colonel dit qu'on va bientôt transporter toute cette marchandise en Angleterre. Il faut juste s'assurer que le ciel est sûr."
+
+"welcome_museum"    "Bienvenue dans notre humble petit musée, capitaine."
+
+"hq_sir"            "Mon capitaine !"
+
+"hq_hq"             "Le quartier général est juste devant, mon capitaine."
+
+"hq_colonel"        "Le colonel devrait être à l'intérieur, capitaine."
+
+"gimmewp_intro"     "Capitaine Blazkowicz, bienvenue au centre d'entraînement."
+
+"gimmewp_justdont"  "Désolé, capitaine. Mais vous ne pouvez pas sortir ces armes du centre."
+
+"gimmewp_lt"        "Le lieutenant McDermott est dans la section suivante. Il vous fera découvrir notre nouveau parcours."
+
+"gimmewp_resupply"  "Pour vous ravitailler, utilisez l'armoire à munitions."
+
+"course_welcome"    "Salut, capitaine. Bon retour sur le parcours."
+
+"course_garbage"    "C'était mieux. Mais ce n'est pas dur de faire mieux que du travail bâclé. On recommence."
+
+"course_horrible"   "Ce n'était pas horrible, mais pas génial non plus."
+
+"course_prettygood" "Ça, c'était sacrément bien ! Beau travail, Blazkowicz !"
+
+"course_seenworse"  "Bien. J'ai vu pire. Mais il reste quelques points à travailler."
+
+"course_ok"        "Pas mal, là-bas. Mais vous avez encore du travail."
+
+"col_blazko?"      "Blazkowicz ?"
+
+"doc_busy"         "Désolé, capitaine, je suis trop occupé. Allez embêter quelqu'un d'autre."
+
+"doc_touch"        "Je vous en prie, ne touchez à rien ici !"
+
+"doc_syringes"     "Si vous avez besoin de seringues, elles sont dans la pièce d'à côté. Le caporal vous aidera."
+
+"waters_nothing" "Je n'ai rien pour toi, BJ. Si tu veux essayer nos armes, va plutôt au stand de tir."
+
+"col_brief1"       "Maintenant, votre mission. On m'a dit que vous deviez saboter le complexe V2 de Katamarunde et vous emparer du tout dernier avion-fusée allemand."
+
+"col_brief12"      "Vous serez parachuté dans la forêt voisine. Ensuite, vous serez livré à vous-même. L'avion de transport de l'OSA vous attend sur l'aérodrome." 
+
+"col_brief13"      "Vous trouverez les détails de la mission dans ce dossier scellé, à lire en route. En attendant, nous préparerons la piste pour votre retour."
+
+"col_frank" "C'est vraiment terrible, ce qui est arrivé à l'Agent Un. Je connaissais Frank personnellement. Je n'aurais jamais cru qu'il finirait comme ça."
+
+"col_hell" "C'est une sacrée mission pour un seul homme. J'espère que les gens de l'OSA savent ce qu'ils font en vous envoyant là-bas seul."
+
+"col_mynameis" "Je suis le colonel Charles Redford. Je commande la garnison britannique ici."
+
+"col_mynameis2" "J'ai reçu l'ordre d'apporter toute l'aide nécessaire aux opérations de l'OSA à Malte. Si vous avez besoin de quoi que ce soit, n'hésitez pas à me le demander directement."
+
+"col_namepresume" "Capitaine William Blazkowicz, je présume ?"
+
+"col_watershelp" "N'oubliez pas de vous ravitailler à l'armurerie. Le soldat Waters vous aidera."
+
+"col_godspeed"   "Bonne chance, capitaine !"
+
+"waters_gladtoseeya" "BJ ! Ce que je suis content de te voir ! Ça fait un moment depuis notre raid sur Siwa."
+
+"waters_meandlt" "Le lieutenant et moi, on a été mutés ici pour soutenir les opérations de l'OSA."
+
+"waters_meandlt2" "Il est coincé avec les nouveaux sur le parcours d'entraînement, et moi, on m'a confié la logistique des munitions et des armes ici, à l'armurerie."
+
+"waters_chapter2" "Ta prochaine mission demandera de la discrétion. J'ai préparé deux équipements pour ce genre de mission. Choisis celui que tu préfères."
+
+"waters_goodtogo" "OK. Tout a l'air en ordre. Bonne chance !"
+
+"waters_france" "Tu as des nouvelles de l'Agent Deux ? Le lieutenant m'a dit qu'elle avait été réaffectée en France."
+
+"drunk_listen" "Hé ! Qu'est-ce que tu fabriques ? J'écoutais ça !"
+
+"bart_out" "Je m'en fiche ! Dehors !"
+
+"bart_name" "Je m'appelle Evie. Je tiens cette taverne du mieux que je peux. Une affaire de famille, vous savez."
+
+"bart_sleep" "Si vous cherchez où dormir, allez plutôt voir l'hôtel de l'autre côté de la rue. Un endroit charmant."
+
+"bart_back" "Qu'est-ce que vous fabriquez ? Écartez-vous du comptoir ! Tout de suite !"
+
+"bart_get" "Qu'est-ce que je vous sers ?"
+
+"bartender_welcome" "Bienvenue au One Eyed Jack ! Qu'est-ce que je vous sers ?"
+
+"bart_beer" "Vous préférez une bière ? Ou quelque chose de plus fort ?"
+
+"bart_new" "Je ne vous ai jamais vu. Vous êtes nouveau ici ?"
+
+"medic_adrenaline" "Le docteur Kovlov dirige les recherches sur l'adrénaline. Il a étudié l'échantillon que vous avez rapporté et compte l'améliorer."
+
+"medic_greet"      "Bonjour, capitaine ! Caporal Hobbins, à votre service. J'assiste le docteur Kovlov ici. Malgré son fort accent russe, on s'entend très bien."
+
+"medic_hesok" "Le docteur Kovlov n'est peut-être pas le type le plus agréable que vous ayez rencontré, mais il est réglo, croyez-moi."
+
+"medic_captain" "Capitaine ?"
+
+"patrol_crane1" "Je ne veux pas te presser, mais il faut que cette grue marche avant demain matin. Alors fais-la fonctionner au plus vite."
+}

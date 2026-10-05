@@ -1,0 +1,15 @@
+{
+"xlab_table_fall" " "
+"cine1_nazi1_1" "Monsieur..."
+"deathshead_1" "J'espère que c'est important..."
+"cine1_nazi1_2" "Oui, monsieur. L'agent américain s'est infiltré dans les X-Labs."
+"deathshead_2" "Quoi ?! Cet imbécile va-t-il me suivre jusqu'au bout du monde ?"
+"cine1_nazi1_3" "Quels sont vos ordres, Herr Oberführer ?"
+"deathshead_3" "Envoyez immédiatement le reste des forces de sécurité !"
+"cine1_nazi1_4" "Et si l'Américain passe les forces de sécurité ?"
+"deathshead_4" "Alors je m'occuperai de lui."
+"cine1_nazi1_jawohl" "Jawohl !"
+"xlabs_switch" " "
+"xlabs_sci_fear3" " "
+"xlabs_sci_misc_fear2" " "
+}

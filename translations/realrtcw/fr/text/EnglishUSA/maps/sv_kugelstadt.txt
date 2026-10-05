@@ -1,0 +1,41 @@
+{
+"mauser_buy" "Fusil Mauser"
+
+"second_chance_buy" "Résurrection"
+
+"grenades_buy" "Grenades"
+
+"marathon_buy" "Marathon"
+
+"tommy_buy" "Mitraillette Thompson"
+
+"fasthands_buy" "Mains agiles"
+
+"buy_g43"       "Gewehr 43"
+
+"buy_scavenger" "Pilleur"
+
+"buy_regen"     "Résistance"
+
+"buy_mp44"      "MP44"
+
+"buy_ppsh"      "PPSH"
+
+"doubleshot_buy"  "Double tir"
+
+"buy_armor"       "Armure"
+
+"buy_flametrap"   "Piège à flammes"
+
+"buy_random_box"  "Arme au hasard"
+
+"reinforce_buy"  "Appeler des renforts"
+
+"buy_ammo"       "Munitions"
+
+"weapon_upgrade_buy" "Améliorer l'arme"
+
+"door_buy"           "Ouvrir le passage"
+
+"buy_door"            "Ouvrir le passage"
+}

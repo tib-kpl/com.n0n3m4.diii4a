@@ -1,0 +1,9 @@
+{
+"rocket_sci0_dont_shoot" "Je vous en prie, ne tirez pas !"
+"TYSci1_1" "Dépêchez-vous avec ces documents !"
+"TYSci2_1" "J'ai presque fini ! Une minute !"
+"TYSci1_2" "On n'a pas une minute ! Deathshead voulait partir il y a une heure et il est furieux !"
+"TYSci2_2" "Bon, bon. Pourquoi tant de précipitation ?"
+"TYSci1_3" "Il part pour le centre au nord. C'est quelque chose d'énorme. C'est tout ce que je sais."
+"TYMech1_1" "Bon, l'ascenseur est réparé ! Maintenant, monte et remets le courant !"
+}

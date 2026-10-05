@@ -1,0 +1,6 @@
+{
+"FacNazi1_1" "Alors, comment je désamorce ce truc ?"
+"FacNazi2_1" "Je te l'ai dit, coupe juste le fil rouge ! Ou c'était le bleu ? Argh... Attends, je vais chercher le manuel."
+"FacNazi1_2" "Laisse tomber. De toute façon, ils me paraissent tous gris."
+"FacNazi3_1" "Hé ! Que quelqu'un descende l'échelle !"
+}
