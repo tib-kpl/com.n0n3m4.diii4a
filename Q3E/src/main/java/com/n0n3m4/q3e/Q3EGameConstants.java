@@ -398,7 +398,7 @@ public final class Q3EGameConstants
     public static final String ETW_VERSION                    = GAME_VERSION_ETW + ".1"; // 1: init
     public static final String WOLF3D_VERSION                 = GAME_VERSION_WOLF3D + ".2"; // 1: unuse libretro
     public static final String SKINDEEP_GLSL_SHADER_VERSION   = GAME_VERSION_SKINDEEP + ".1"; // 1: init
-    public static final String REALRTCW_LANGUAGE_PACK_VERSION = GAME_VERSION_REALRTCW + ".1"; // 1: French
+    public static final String REALRTCW_LANGUAGE_PACK_VERSION = GAME_VERSION_REALRTCW + ".2"; // 1: French menus; 2: French subtitles and documents (bump it when translations/realrtcw changes)
     public static final String ETQW_GLSL_SHADER_VERSION       = GAME_VERSION_ETQW + ".6"; // 3: megatexture shadow
 
 
