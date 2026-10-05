@@ -1,0 +1,105 @@
+# French texts of RealRTCW's menu images: (English text in the image, French text).
+# "banner": the text on the button's banner; "lines": the other lines from top to bottom (None: kept);
+# "keep_prefix": "Mission N" before the title stays as it is.
+
+BACK = ('BACK', 'RETOUR')
+H_MOVE = ('Move, look and shoot your way.', 'Déplacez-vous, visez et tirez à votre façon.')
+H_PERF = ('Check performance, engine and visual settings.', 'Performances, moteur et réglages graphiques.')
+H_LOAD = ('Load an existing save file.', 'Charger une sauvegarde existante.')
+H_QUIT = ('Chickening out already?', 'Déjà la trouille ?')
+H_SYS = ('Apply different graphic, engine and sound settings.', 'Réglages graphiques, du moteur et du son.')
+H_TRAIN = ('Hone your skills at the shooting range.', 'Perfectionnez-vous au stand de tir.')
+
+CHAPTERS = [
+    ('Ominous Rumors', 'Rumeurs inquiétantes'),
+    ('Dark Secret', 'Sombre secret'),
+    ('Weapons of Vengeance', 'Armes de vengeance'),
+    ('Deadly Designs', 'Plans mortels'),
+    ("Deathshead's Playground", 'Le terrain de jeu de Deathshead'),
+    ('Return Engagement', 'Retour au combat'),
+    ('Operation Resurrection', 'Opération Résurrection'),
+]
+INGAME = [('SAVE GAME', 'SAUVEGARDER'), ('LOAD GAME', 'CHARGER'), ('CONTROLS', 'COMMANDES'),
+          ('GAME OPTIONS', 'OPTIONS DE JEU'), ('SYSTEM', 'SYSTÈME'), ('MAIN MENU', 'MENU PRINCIPAL'),
+          ('QUIT', 'QUITTER')]
+
+IMAGES = {
+    'realrtcw_999': {'banner': ('999 MODE', 'MODE 999'),
+                     'lines': [('999 ammo, 999 health, Death Incarnate.', '999 munitions, 999 santé, Mort incarnée.')]},
+    'realrtcw_bonus_back': {'banner': BACK},
+    'realrtcw_chapters': {'keep_prefix': True, 'lines': CHAPTERS + [BACK]},
+    'realrtcw_chapters_back': {'banner': BACK},
+    'realrtcw_hardcore': {'banner': ('HARDCORE', 'HARDCORE'),
+                          'lines': [('No health and armor pickups, Death Incarnate.', 'Ni soins ni armure à ramasser, Mort incarnée.')]},
+    'realrtcw_ingame': {'lines': INGAME},
+    'realrtcw_ingame_controls': {'banner': ('CONTROLS', 'COMMANDES'), 'lines': [H_MOVE]},
+    'realrtcw_ingame_game': {'banner': ('GAME OPTIONS', 'OPTIONS DE JEU'), 'lines': [H_PERF]},
+    'realrtcw_ingame_load': {'banner': ('LOAD GAME', 'CHARGER'), 'lines': [H_LOAD]},
+    'realrtcw_ingame_main': {'banner': ('MAIN MENU', 'MENU PRINCIPAL'),
+                             'lines': [('Leave the current game and return to the title screen.', "Quitter la partie et revenir à l'écran titre.")]},
+    'realrtcw_ingame_quit': {'banner': ('QUIT', 'QUITTER'), 'lines': [H_QUIT]},
+    'realrtcw_ingame_save': {'banner': ('SAVE GAME', 'SAUVEGARDER'),
+                             'lines': [('Save current game progress.', 'Sauvegarder la progression.')]},
+    'realrtcw_ingame_sv': {'lines': INGAME},
+    'realrtcw_ingame_system': {'banner': ('SYSTEM', 'SYSTÈME'), 'lines': [H_SYS]},
+    'realrtcw_ironman': {'banner': ('IRONMAN', 'HOMME DE FER'),
+                         'lines': [('No manual saves, Death Incarnate.', 'Pas de sauvegarde manuelle, Mort incarnée.')]},
+    'realrtcw_load': {'lines': [('LOAD', 'CHARGER'), BACK]},
+    'realrtcw_load_back': {'banner': BACK},
+    'realrtcw_load_load': {'banner': ('LOAD', 'CHARGER'),
+                           'lines': [('Load selected saved game.', 'Charger la sauvegarde choisie.')]},
+    'realrtcw_logo_sv': {'lines': [None, ('Survival', 'Survie')]},
+    'realrtcw_main': {'lines': [('PLAY', 'JOUER'), ('LOAD GAME', 'CHARGER'), ('OPTIONS', 'OPTIONS'),
+                                ('ADD-ONS', 'EXTENSIONS'), ('CREDITS', 'CRÉDITS'), ('QUIT', 'QUITTER')]},
+    'realrtcw_main_addons': {'banner': ('ADD-ONS', 'EXTENSIONS'),
+                             'lines': [('Launch and play additional campaigns.', 'Lancer des campagnes supplémentaires.')]},
+    'realrtcw_main_credits': {'banner': ('CREDITS', 'CRÉDITS'),
+                              'lines': [("Who's behind this? Let's find out!", 'Qui est derrière tout ça ? À découvrir !')]},
+    'realrtcw_main_discord': {'lines': [('Join our official server for discussion,', 'Rejoignez notre serveur officiel : discussions,'),
+                                        ('updates, and support! Welcome aboard!', 'nouveautés et aide ! Bienvenue à bord !')]},
+    'realrtcw_main_loadgame': {'banner': ('LOAD GAME', 'CHARGER'), 'lines': [H_LOAD]},
+    'realrtcw_main_newgame': {'banner': ('PLAY', 'JOUER'), 'lines': [('Ready to start?', 'Prêt à commencer ?')]},
+    'realrtcw_main_options': {'banner': ('OPTIONS', 'OPTIONS'),
+                              'lines': [('Change controls, system settings and more.', 'Commandes, réglages du système et plus encore.')]},
+    'realrtcw_main_play': {'lines': [('CAMPAIGN', 'CAMPAGNE'), ('SURVIVAL', 'SURVIE'), ('TRAINING', 'ENTRAÎNEMENT'), BACK]},
+    'realrtcw_main_play_back': {'banner': BACK},
+    'realrtcw_main_play_campaign': {'banner': ('CAMPAIGN', 'CAMPAGNE'),
+                                    'lines': [('Initiate Operation Resurrection?', "Lancer l'opération Résurrection ?")]},
+    'realrtcw_main_play_survival': {'banner': ('SURVIVAL', 'SURVIE'),
+                                    'lines': [('Be the last man standing!', 'Soyez le dernier survivant !')]},
+    'realrtcw_main_play_training': {'banner': ('TRAINING', 'ENTRAÎNEMENT'), 'lines': [H_TRAIN]},
+    'realrtcw_main_quit': {'banner': ('QUIT', 'QUITTER'), 'lines': [H_QUIT]},
+    'realrtcw_main_training': {'banner': ('TRAINING', 'ENTRAÎNEMENT'), 'lines': [H_TRAIN]},
+    'realrtcw_nightmare': {'banner': ('NIGHTMARE', 'CAUCHEMAR'),
+                           'lines': [('No HUD, no manual saves, no health and armor pickups,', 'Sans ATH, sans sauvegarde manuelle, ni soins ni armure,'),
+                                     ('Death Incarnate.', 'Mort incarnée.')]},
+    'realrtcw_options': {'lines': [('CONTROLS', 'COMMANDES'), ('SYSTEM', 'SYSTÈME'), ('GAME OPTIONS', 'OPTIONS DE JEU'),
+                                   ('DEFAULTS', 'PAR DÉFAUT'), BACK]},
+    'realrtcw_options_back': {'banner': BACK},
+    'realrtcw_options_controls': {'banner': ('CONTROLS', 'COMMANDES'), 'lines': [H_MOVE]},
+    'realrtcw_options_defaults': {'banner': ('DEFAULTS', 'PAR DÉFAUT'),
+                                  'lines': [('Revert back to default settings.', 'Revenir aux réglages par défaut.')]},
+    'realrtcw_options_game': {'banner': ('GAME OPTIONS', 'OPTIONS DE JEU'), 'lines': [H_PERF]},
+    'realrtcw_options_system': {'banner': ('SYSTEM', 'SYSTÈME'), 'lines': [H_SYS]},
+    'realrtcw_play': {'lines': [('CAN I PLAY, DADDY?', 'JE PEUX JOUER, PAPA ?'), ("DON'T HURT ME.", 'NE ME FAIS PAS MAL.'),
+                                ("BRING'EM ON!", 'AMENEZ-LES-MOI !'), ('I AM DEATH INCARNATE!', 'JE SUIS LA MORT INCARNÉE !'),
+                                ('REALISM', 'RÉALISME'), BACK]},
+    'realrtcw_play_2': {'lines': [('BONUS MODES', 'MODES BONUS')]},
+    'realrtcw_play_back': {'banner': BACK},
+    'realrtcw_play_bonus': {'banner': ('BONUS MODES', 'MODES BONUS')},
+    'realrtcw_play_skill0': {'banner': ('CAN I PLAY, DADDY?', 'JE PEUX JOUER, PAPA ?'),
+                             'lines': [('For casual players.', 'Pour les joueurs occasionnels.')]},
+    'realrtcw_play_skill1': {'banner': ("DON'T HURT ME.", 'NE ME FAIS PAS MAL.'),
+                             'lines': [('Standard RTCW experience.', "L'expérience RTCW classique.")]},
+    'realrtcw_play_skill2': {'banner': ("BRING'EM ON!", 'AMENEZ-LES-MOI !'),
+                             'lines': [('You will be challenged.', "Vous serez mis à l'épreuve.")]},
+    'realrtcw_play_skill3': {'banner': ('I AM DEATH INCARNATE!', 'JE SUIS LA MORT INCARNÉE !'),
+                             'lines': [('For hardcore players.', 'Pour les joueurs aguerris.')]},
+    'realrtcw_play_skill4': {'banner': ('REALISM', 'RÉALISME'), 'lines': [("You won't survive.", 'Vous ne survivrez pas.')]},
+    'realrtcw_skills_bonus': {'lines': [('WALK IN THE PARK', 'PROMENADE DE SANTÉ'), ('IRONMAN', 'HOMME DE FER'),
+                                        ('HARDCORE', 'HARDCORE'), ('999 MODE', 'MODE 999'), ('NIGHTMARE', 'CAUCHEMAR'), BACK]},
+    'realrtcw_walkpark': {'banner': ('WALK IN THE PARK', 'PROMENADE DE SANTÉ'),
+                          'lines': [('No HUD, Realism difficulty.', 'Sans ATH, difficulté Réalisme.')]},
+}
+for i, ch in enumerate(CHAPTERS):
+    IMAGES['realrtcw_chapter%d' % (i + 1)] = {'banner': ch, 'keep_prefix': True}
