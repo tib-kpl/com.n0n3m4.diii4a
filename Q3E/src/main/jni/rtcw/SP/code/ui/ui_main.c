@@ -6939,6 +6939,17 @@ void _UI_KeyEvent( int key, qboolean down ) {
 
 	if ( Menu_Count() > 0 ) {
 		menuDef_t *menu = Menu_GetFocused();
+		// port: on the pregame screen, Enter and the pad's A / Start start the game as its arrow does
+		// (a pad has no pointer to click it with)
+		if ( menu && down && !Q_stricmp( menu->window.name, "pregame" ) &&
+			( key == K_ENTER || key == K_KP_ENTER || key == K_PAD0_A || key == K_PAD0_START ) ) {
+			if ( trap_Cvar_VariableValue( "g_playerstart" ) == 0 ) {
+				trap_Cmd_ExecuteText( EXEC_APPEND, "fade 0 0 0 0 3\n" );
+				trap_Cvar_Set( "g_playerstart", "1" );
+				Menus_CloseAll();
+			}
+			return;
+		}
 		if ( menu ) {
 			if ( key == K_ESCAPE && down && !Menus_AnyFullScreenVisible() ) {
 				Menus_CloseAll();

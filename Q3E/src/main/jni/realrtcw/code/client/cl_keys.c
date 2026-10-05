@@ -2472,7 +2472,8 @@ static int CL_MenuPadKey( int key, qboolean down ) {
 		}
 		return menuKey;
 	}
-	if ( ( Key_GetCatcher( ) & KEYCATCH_UI ) && !( Key_GetCatcher( ) & KEYCATCH_CONSOLE ) ) {
+	if ( ( Key_GetCatcher( ) & KEYCATCH_UI ) && !( Key_GetCatcher( ) & KEYCATCH_CONSOLE ) &&
+		( clc.state != CA_ACTIVE || Cvar_VariableIntegerValue( "cl_paused" ) ) ) {
 		switch ( key ) {
 		case K_PAD0_DPAD_UP:    menuKey = K_UPARROW; break;
 		case K_PAD0_DPAD_DOWN:  menuKey = K_DOWNARROW; break;

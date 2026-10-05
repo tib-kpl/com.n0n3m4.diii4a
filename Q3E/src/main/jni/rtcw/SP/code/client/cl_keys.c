@@ -2334,8 +2334,9 @@ void CL_KeyDownEvent( int key, unsigned time )
 			// any key gets out of clipboard
 			key = K_ESCAPE;
 		} else if ( activeMenu == UIMENU_PREGAME ) {
-			if ( key != K_MOUSE1 ) {
-				return; // eat all keys except mouse click
+			// a click, or Enter / the pad's A or Start (the UI starts the game with them)
+			if ( key != K_MOUSE1 && key != K_ENTER && key != K_KP_ENTER && key != K_PAD0_A && key != K_PAD0_START ) {
+				return; // eat all other keys
 			}
 		} else {
 
@@ -2430,7 +2431,8 @@ static int CL_MenuPadKey( int key, qboolean down ) {
 		}
 		return menuKey;
 	}
-	if ( ( Key_GetCatcher( ) & KEYCATCH_UI ) && !( Key_GetCatcher( ) & KEYCATCH_CONSOLE ) ) {
+	if ( ( Key_GetCatcher( ) & KEYCATCH_UI ) && !( Key_GetCatcher( ) & KEYCATCH_CONSOLE ) &&
+		( clc.state != CA_ACTIVE || Cvar_VariableIntegerValue( "cl_paused" ) ) ) {
 		switch ( key ) {
 		case K_PAD0_DPAD_UP:    menuKey = K_UPARROW; break;
 		case K_PAD0_DPAD_DOWN:  menuKey = K_DOWNARROW; break;
