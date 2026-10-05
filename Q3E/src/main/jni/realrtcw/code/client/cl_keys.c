@@ -2449,7 +2449,46 @@ CL_KeyEvent
 Called by the system for both key up and key down events
 ===================
 */
+/*
+===================
+CL_MenuPadKey
+
+The pad in the menus: its d-pad and A / B buttons are what the menus know, the arrows, Enter
+and Escape (the menus took only the mouse, so the stick as a pointer). What a key became when it
+went down is what goes up, even if the menu closed in between.
+===================
+*/
+static int CL_MenuPadKey( int key, qboolean down ) {
+	static int translated[MAX_KEYS];
+	int menuKey = key;
+
+	if ( key < 0 || key >= MAX_KEYS ) {
+		return key;
+	}
+	if ( !down ) {
+		if ( translated[key] ) {
+			menuKey = translated[key];
+			translated[key] = 0;
+		}
+		return menuKey;
+	}
+	if ( ( Key_GetCatcher( ) & KEYCATCH_UI ) && !( Key_GetCatcher( ) & KEYCATCH_CONSOLE ) ) {
+		switch ( key ) {
+		case K_PAD0_DPAD_UP:    menuKey = K_UPARROW; break;
+		case K_PAD0_DPAD_DOWN:  menuKey = K_DOWNARROW; break;
+		case K_PAD0_DPAD_LEFT:  menuKey = K_LEFTARROW; break;
+		case K_PAD0_DPAD_RIGHT: menuKey = K_RIGHTARROW; break;
+		case K_PAD0_A:          menuKey = K_ENTER; break;
+		case K_PAD0_B:          menuKey = K_ESCAPE; break;
+		default: break;
+		}
+	}
+	translated[key] = ( menuKey != key ) ? menuKey : 0;
+	return menuKey;
+}
+
 void CL_KeyEvent (int key, qboolean down, unsigned time) {
+	key = CL_MenuPadKey( key, down );
 	if( down )
 		CL_KeyDownEvent( key, time );
 	else
