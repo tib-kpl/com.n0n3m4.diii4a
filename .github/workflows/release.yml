@@ -43,10 +43,13 @@ jobs:
             options: -DGAME_DOOM3=OFF,-DGAME_RTCW=OFF,-DGAME_QUAKE3=OFF,-DGAME_QUAKE2=OFF,-DGAME_QUAKE1=OFF,-DGAME_TDM=OFF,-DGAME_DOOM3BFG=OFF,-DGAME_DOOM=OFF,-DGAME_ETW=OFF,-DGAME_REALRTCW=OFF,-DGAME_FTEQW=OFF,-DGAME_JK=OFF,-DGAME_SERIOUSSAM=OFF,-DGAME_REALRTCW=OFF,-DGAME_URT=OFF,-DGAME_OPENMOHAA=OFF,-DGAME_WOLF3D=OFF,-DGAME_SKINDEEP=OFF,-DGAME_QC=OFF,-DGAME_ICARUS=OFF,-DGAME_XASH3D=OFF
             remove: ""
             libs: libsource*.so
+            # what its libraries are made of (with the common parts, see "Fingerprint")
+            paths: Q3E/src/main/jni/source
           - group: idtech4
             # android.yml's "Build idTech4"
             options: -DGAME_RTCW=OFF,-DGAME_QUAKE3=OFF,-DGAME_QUAKE2=OFF,-DGAME_QUAKE1=OFF,-DGAME_DOOM=OFF,-DGAME_ETW=OFF,-DGAME_REALRTCW=OFF,-DGAME_FTEQW=OFF,-DGAME_JK=OFF,-DGAME_SERIOUSSAM=OFF,-DGAME_REALRTCW=OFF,-DGAME_URT=OFF,-DGAME_OPENMOHAA=OFF,-DGAME_SOURCE=OFF,-DGAME_WOLF3D=OFF,-DGAME_SKINDEEP=OFF,-DGAME_XASH3D=OFF
             remove: Q3E/src/main/jni/source
+            paths: Q3E/src/main/jni/doom3 Q3E/src/main/jni/quake4 Q3E/src/main/jni/prey Q3E/src/main/jni/darkmod Q3E/src/main/jni/doom3bfg Q3E/src/main/jni/qc Q3E/src/main/jni/icarus Q3E/src/main/jni/backports
             libs: libdoom3.so libquake4.so libprey.so libRBDoom3BFG*.so libTheDarkMod.so libgame.so libd3xp.so libcdoom.so libd3le.so libfraggingfree.so libhardcorps.so libhexeneoc.so liblibrecoop.so liblibrecoopxp.so liboverthinked.so libperfected.so libperfected_roe.so librivensin.so libsabot.so libtfphobos.so libq4game.so libq4xbase.so libhazzzzzy.so libhardqore.so libpreygame.so libetqw.so libetqwgame.so libqc.so libICARUS.so
     name: engines (${{ matrix.group }})
     runs-on: ubuntu-latest
@@ -65,7 +68,28 @@ jobs:
         with:
           submodules: true
 
+      # The group's libraries are built again only when something they are made of changed: the
+      # git trees of its folders, of the common ones and of the Gradle build, and its options.
+      - name: Fingerprint
+        id: fingerprint
+        run: |
+          {
+            for p in ${{ matrix.paths }} Q3E/src/main/jni/common Q3E/src/main/jni/q3e Q3E/src/main/jni/deplibs                      Q3E/src/main/jni/depincs Q3E/src/main/jni/CMakeLists.txt Q3E/build.gradle build.gradle                      gradle.properties gradle/wrapper/gradle-wrapper.properties; do
+              echo "$p $(git rev-parse --verify -q "HEAD:$p" || echo none)"
+            done
+            echo "options ${{ matrix.options }} ${{ matrix.libs }}"
+          } | tee fingerprint.txt
+          echo "hash=$(sha256sum fingerprint.txt | cut -c1-40)" >> $GITHUB_OUTPUT
+
+      - name: Libraries already built
+        id: built
+        uses: actions/cache/restore@v4
+        with:
+          path: engine-libs
+          key: engine-libs-${{ matrix.group }}-${{ steps.fingerprint.outputs.hash }}
+
       - name: Setup jdk 11
+        if: steps.built.outputs.cache-hit != 'true'
         uses: actions/setup-java@v4
         with:
           java-version: 11
@@ -73,12 +97,14 @@ jobs:
           cache: gradle
 
       - name: Setup ccache
+        if: steps.built.outputs.cache-hit != 'true'
         uses: hendrikmuhs/ccache-action@v1.2
         with:
           key: diii4a-arm64-${{ matrix.group }}
           max-size: 3G
 
       - name: Configure ccache
+        if: steps.built.outputs.cache-hit != 'true'
         run: |
           # smaller entries, and no miss for what does not change the result
           ccache --set-config=compression_level=9
@@ -87,11 +113,13 @@ jobs:
           ccache -p | grep -E "max_size|compression|sloppiness|base_dir"
 
       - name: Setup build environment
+        if: steps.built.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get -y install build-essential
 
       - name: Build
+        if: steps.built.outputs.cache-hit != 'true'
         run: |
           mv ./* /mnt/diii4a/
           cd /mnt/diii4a
@@ -104,6 +132,13 @@ jobs:
           cp -f ${{ matrix.libs }} $GITHUB_WORKSPACE/engine-libs/
           ls -l $GITHUB_WORKSPACE/engine-libs
           df -h
+
+      - name: Remember the libraries
+        if: steps.built.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: engine-libs
+          key: engine-libs-${{ matrix.group }}-${{ steps.fingerprint.outputs.hash }}
 
       - name: Keep the libraries
         uses: actions/upload-artifact@v4
