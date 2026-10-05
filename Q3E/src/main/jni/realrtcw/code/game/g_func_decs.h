@@ -1028,7 +1028,6 @@ extern void G_RegisterCvars ( void ) ;
 extern void G_RemapTeamShaders ( void ) ;
 extern void G_FindTeams ( void ) ;
 extern void G_CheckForCursorHints ( gentity_t * ent ) ;
-extern void G_EndGame ( void ) ;
 extern qboolean G_canStealthStab ( int aiChar ) ;
 extern void QDECL G_Error ( const char * fmt , ... ) ;
 extern void QDECL G_DPrintf ( const char * fmt , ... ) ;
@@ -1350,6 +1349,7 @@ extern qboolean AICast_ScriptAction_Sight ( cast_state_t * cs , char * params ) 
 extern qboolean AICast_ScriptAction_NoSight ( cast_state_t * cs , char * params ) ;
 extern qboolean AICast_ScriptAction_FoundSecret ( cast_state_t * cs , char * params ) ;
 extern qboolean AICast_ScriptAction_ChangeLevel ( cast_state_t * cs , char * params ) ;
+extern qboolean AICast_ScriptAction_TransitiontoMod( cast_state_t *cs, char *params ) ;
 extern qboolean AICast_ScriptAction_AchievementGeneric( cast_state_t *cs, char *params );
 extern qboolean AICast_ScriptAction_EndGame ( cast_state_t * cs , char * params ) ;
 extern qboolean AICast_ScriptAction_Announce( gentity_t *ent, char *params ) ;

@@ -185,7 +185,8 @@ translateString_t translateStrings[] = {
 	{"usedshield"}
 };
 
-bonusString_t bonusStrings[] = {
+// sized to MAX_BONUSSTRINGS so trailing slots are free for custom campaign keys to append into
+bonusString_t bonusStrings[MAX_BONUSSTRINGS] = {
 	{"bonus_escape1"},   
 	{"bonus_escape1_alt"},                   
 	{"bonus_escape2"},   
@@ -3187,6 +3188,21 @@ void Menu_HandleKey( menuDef_t *menu, int key, qboolean down ) {
 			DC->executeText( EXEC_APPEND, "screenshot\n" );
 		}
 		break;
+
+	case K_PAD0_LEFTSHOULDER:
+		if ( !Q_stricmp( menu->window.name, "ingame" ) ) {
+			DC->executeText( EXEC_APPEND, "togglemenu\n" );
+			DC->executeText( EXEC_APPEND, "loadgame quicksave\n" );
+		}
+		break;
+
+	case K_PAD0_RIGHTSHOULDER:
+		if ( !Q_stricmp( menu->window.name, "ingame" ) ) {
+			DC->executeText( EXEC_APPEND, "togglemenu\n" );
+			DC->executeText( EXEC_APPEND, "savegame quicksave\n" );
+		}
+		break;
+
 	case K_KP_UPARROW:
 	case K_UPARROW:
     case K_PAD0_DPAD_UP:
@@ -3768,9 +3784,10 @@ static bind_t g_bindings[] =
 	{"zoomout",          -1,             -1, -1, -1},
 	{"+kick",            -1,             -1, -1, -1},
 	{"+quickgren",       -1,             -1, -1, -1},
+	{"+weaponwheel",      K_TAB,         -1, -1, -1},
 	{"+reload",      -1,             -1, -1, -1},
 	{"+sprint",      -1,             -1, -1, -1},
-	{"notebook",     K_TAB,          -1, -1, -1},
+	{"notebook",    -1,          -1, -1, -1},
 //	{"help",			K_F1,           -1, -1, -1},
 	{"+leanleft",        -1,             -1, -1, -1},
 	{"+leanright",       -1,             -1, -1, -1},
@@ -3956,6 +3973,10 @@ void Item_Slider_Paint( itemDef_t *item ) {
 	}
 	DC->setColor( newColor );
 	DC->drawHandlePic( x, y, SLIDER_WIDTH, SLIDER_HEIGHT, DC->Assets.sliderBar );
+
+	if ( item->cvar ) {
+		DC->drawText( x + SLIDER_WIDTH + 8, item->textRect.y, item->font, item->textscale, newColor, va( "%.2f", DC->getCVarValue( item->cvar ) ), 0, 0, item->textStyle );
+	}
 
 	x = Item_Slider_ThumbPosition( item );
 	DC->drawHandlePic( x - ( SLIDER_THUMB_WIDTH / 2 ), y - 2, SLIDER_THUMB_WIDTH, SLIDER_THUMB_HEIGHT, DC->Assets.sliderThumb );

@@ -89,29 +89,41 @@ typedef struct svParams_s
 	int initialEliteGuardsCount;
 	int initialBlackGuardsCount;
 	int initialVenomsCount;
+	int initialXdogCount;
+	int initialProtosCount;
+	int initialssCount;
+	int initialdogCount;
+	int initialheinCount;
 
 	int initialZombiesCount;
 	int initialFleshCount;
 	int initialWarriorsCount;
-	int initialProtosCount;
 	int initialGhostsCount;
 	int initialPriestsCount;
 	int initialPartisansCount;
 	int initialFlamersCount;
 	int initialLopersCount;
+	int initialHelgaCount;
 
     int   defaultSpawnTime;
+
 	int   egSpawnTime;
 	int   trenchSpawnTime;
+	int   XdogSpawnTime;
 	int   bgSpawnTime;
 	int   vSpawnTime;
 	int   protoSpawnTime;
+	int   ssSpawnTime;
+	int   dogSpawnTime;
+	int   heinSpawnTime;
+
 
 	int   warzSpawnTime;
 	int   ghostSpawnTime;
 	int   priestSpawnTime;
 	int   flamerSpawnTime;
 	int   loperSpawnTime;
+	int   helgaSpawnTime;
 
 	int   friendlySpawnTime;
 	int   aliveFriendliestoCallReinforce;
@@ -119,6 +131,7 @@ typedef struct svParams_s
 	int soldiersIncrease;
 	int mercsIncrease;
 	int trenchIncrease;
+	int XdogIncrease;
 	int eliteGuardsIncrease;
 	int blackGuardsIncrease;
 	int venomsIncrease;
@@ -130,6 +143,10 @@ typedef struct svParams_s
 	int priestsIncrease;
 	int flamersIncrease;
 	int lopersIncrease;
+	int helgaIncrease;
+	int ssIncrease;
+	int dogIncrease;
+	int heinIncrease;
 
 	int maxSoldiers;
 	int maxMercs;
@@ -137,27 +154,37 @@ typedef struct svParams_s
 	int maxEliteGuards;
 	int maxBlackGuards;
 	int maxVenoms;
+	int maxXdog;
+	int maxProtos;
+	int maxss;
+	int maxdog;
+	int maxhein;
 
 	int maxZombies;
 	int maxFlesh;
 	int maxWarriors;
-	int maxProtos;
 	int maxGhosts;
 	int maxPriests;
 	int maxFlamers;
 	int maxLopers;
+	int maxHelga;
 
 	int waveEg;
 	int waveTrench;
 	int waveBg;
 	int waveV;
+	int waveXdog;
+	int waveProtos;
+	int wavess;
+	int wavedog;
 
 	int waveWarz;
-	int waveProtos;
 	int waveGhosts;
 	int wavePriests;
 	int waveFlamers;
 	int waveLopers;
+	int waveHelga;
+	int wavehein;
 
 	int powerupDropChance;
 	int powerupDropChanceScavengerIncrease;

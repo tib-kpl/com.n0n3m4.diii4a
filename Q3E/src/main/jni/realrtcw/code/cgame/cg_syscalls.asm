@@ -127,6 +127,11 @@ equ trap_UI_ClosePopup			-124
 equ trap_UI_LimboChat			-125
 equ trap_GetModelInfo			-126
 
+equ trap_S_StartSoundVControl	-127
+equ trap_R_inPVS				-128
+
 ; New in iortcw
 equ trap_Alloc					-901
+
+equ trap_R_RegisterSmartSkin    -902
 

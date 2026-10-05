@@ -2211,8 +2211,8 @@ static void PM_BeginWeaponReload( int weapon ) {
 	int reloadTime = ammoTable[weapon].reloadTime;
     int reloadTimeFull = ammoTable[weapon].reloadTimeFull;
 
-	// only allow reload if the weapon isn't already occupied (firing is okay)
-	if ( pm->ps->weaponstate != WEAPON_READY && pm->ps->weaponstate != WEAPON_FIRING && pm->ps->weaponstate != WEAPON_FIRINGALT ) {
+	// only allow reload if the weapon isn't already occupied (firing, or resting pre-spun, is okay)
+	if ( pm->ps->weaponstate != WEAPON_READY && pm->ps->weaponstate != WEAPON_FIRING && pm->ps->weaponstate != WEAPON_FIRINGALT && pm->ps->weaponstate != WEAPON_VENOM_REST ) {
 		return;
 	}
 
@@ -2220,11 +2220,15 @@ static void PM_BeginWeaponReload( int weapon ) {
 		return;
 	}
 
-	if((weapon == WP_M1GARAND) && pm->ps->ammoclip[WP_M1GARAND] != 0) {
-			return;	
+	if ((weapon == WP_M1GARAND) &&
+		pm->ps->weaponUpgraded[WP_M1GARAND] <= 0 &&
+		pm->ps->ammoclip[WP_M1GARAND] != 0)
+	{
+		return;
 	}
 
-	if (weapon == WP_M1941)
+	if (weapon == WP_M1941 &&
+		pm->ps->weaponUpgraded[WP_M1941] <= 0)
 	{
 		int maxclip = BG_GetMaxClip(pm->ps, WP_M1941);
 		if (pm->ps->ammoclip[WP_M1941] > (0.5f * maxclip))
@@ -2587,6 +2591,7 @@ PM_ReloadClip
 static void PM_ReloadClip(int weapon) {
 	int clipIndex = BG_FindClipForWeapon(weapon);
 	int ammoIndex = BG_FindAmmoForWeapon(weapon);
+	int upgradeLevel;
 
 	int ammoreserve = pm->ps->ammo[ammoIndex];
 	int ammoclip    = pm->ps->ammoclip[clipIndex];
@@ -2594,19 +2599,30 @@ static void PM_ReloadClip(int weapon) {
 	int maxclip = BG_GetMaxClip(pm->ps, weapon);
 	int ammomove = maxclip - ammoclip;
 
+	upgradeLevel = pm->ps->weaponUpgraded[weapon];
+	if (upgradeLevel < 0) {
+		upgradeLevel = 0;
+	}
+
 	// Jaymod logic overrides
 	if (!pm->ps->aiChar) {
 		if (weapon == WP_M97 || weapon == WP_AUTO5) {
 			ammomove = 1;
 
 			if (pm->ps->perks[PERK_WEAPONHANDLING]) {
-				if (maxclip - ammoclip >= 2) {
-					ammomove = 2;
-				}
+				ammomove++;
+			}
+
+			if (upgradeLevel > 0) {
+				ammomove++;
+			}
+
+			if (ammomove > (maxclip - ammoclip)) {
+				ammomove = maxclip - ammoclip;
 			}
 		}
 
-		if (weapon == WP_M1941 && ammoclip > 0) {
+		if (weapon == WP_M1941 && ammoclip > 0 && upgradeLevel <= 0) {
 			ammomove = 5;
 		}
 	}
@@ -3536,9 +3552,22 @@ static void PM_Weapon( void ) {
 			}
 		}
 	// check for fire
-	if ( (!(pm->cmd.buttons & BUTTON_ATTACK) && !PM_AltFire() && !delayedFire) 
+	if ( (!(pm->cmd.buttons & BUTTON_ATTACK) && !PM_AltFire() && !delayedFire)
 	    || (pm->ps->leanf != 0 && !PM_AltFiring(delayedFire) && pm->ps->weapon != WP_GRENADE_LAUNCHER && pm->ps->weapon != WP_GRENADE_PINEAPPLE ) )
 	{
+		// WP_VENOM: simple-zoom holds the barrels pre-spun instead of relaxing them
+		if ( pm->ps->weapon == WP_VENOM && pm->ps->simpleZoomed && !pm->ps->aiChar ) {
+			pm->ps->weaponTime  = 0;
+			pm->ps->weaponDelay = 0;
+
+			if ( weaponstateFiring ) { // stopped shooting but still zoomed - settle the base anim, the spin stays up procedurally
+				PM_ContinueWeaponAnim( PM_IdleAnimForWeapon( pm->ps->weapon ) );
+			}
+
+			pm->ps->weaponstate = WEAPON_VENOM_REST;
+			return;
+		}
+
 		pm->ps->weaponTime  = 0;
 		pm->ps->weaponDelay = 0;
 
@@ -3623,6 +3652,9 @@ static void PM_Weapon( void ) {
 			if ( pm->ps->aiChar && pm->ps->weapon == WP_VENOM ) {
 				// AI get fast spin-up
 				pm->ps->weaponDelay = 150;
+			} else if ( pm->ps->weapon == WP_VENOM && pm->ps->weaponstate == WEAPON_VENOM_REST ) {
+				// already pre-spun via simple zoom - fire instantly, no spin-up
+				pm->ps->weaponDelay = 0;
 			} else {
 				// delay so the weapon can get up into position before firing (and showing the flash)
 				pm->ps->weaponDelay = ammoTable[pm->ps->weapon].fireDelayTime;
@@ -3665,7 +3697,7 @@ static void PM_Weapon( void ) {
 	case WP_KNIFE:
 				if(!delayedFire) {
 				// throw
-				if ( pm->cmd.wbuttons & WBUTTON_ATTACK2 && PM_WeaponAmmoAvailable(pm->ps->weapon) ) {
+				if ( pm->cmd.wbuttons & WBUTTON_ATTACK2 && PM_WeaponAmmoAvailable(pm->ps->weapon) > 1 ) {
 					BG_AnimScriptEvent( pm->ps, ANIM_ET_FIREWEAPON, qfalse, qtrue );
 					pm->ps->grenadeTimeLeft = 50;
 					pm->ps->holdable[HI_KNIVES] = 0;
@@ -3731,7 +3763,9 @@ static void PM_Weapon( void ) {
 			ammoNeeded = 1;
 		}
 
-		if ( ammoNeeded > ammoAvailable ) {
+		// never let a throw drop the player below their last knife
+		if ( ammoNeeded > ammoAvailable ||
+			( pm->ps->weapon == WP_KNIFE && pm->ps->weaponstate == WEAPON_FIRINGALT && ammoAvailable < 2 ) ) {
 
 			// you have ammo for this, just not in the clip
 			reloadingW = (qboolean)( ammoNeeded <= pm->ps->ammo[ BG_FindAmmoForWeapon( pm->ps->weapon )] );
@@ -4761,6 +4795,11 @@ void PmoveSingle( pmove_t *pmove ) {
 				}
 			}
 		}
+	}
+
+	// WP_VENOM: pre-spun via simple zoom - show the barrels spinning to others too
+	if ( pm->ps->weapon == WP_VENOM && pm->ps->weaponstate == WEAPON_VENOM_REST ) {
+		pm->ps->eFlags |= EF_FIRING;
 	}
 
 	// clear the respawned flag if attack, attack2 and use are cleared

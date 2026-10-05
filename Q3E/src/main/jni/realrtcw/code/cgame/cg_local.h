@@ -79,8 +79,8 @@ If you have questions concerning this license or the applicable additional terms
 #define STAT_MINUS          10  // num frame for '-' stats digit
 
 #define ICON_SIZE           48
-#define CHAR_WIDTH          32
-#define CHAR_HEIGHT         48
+#define CHAR_WIDTH_CG       32
+#define CHAR_HEIGHT_CG      48
 #define TEXT_ICON_SPACE     4
 
 #define TEAMCHAT_WIDTH      80
@@ -789,6 +789,17 @@ typedef struct {
 	vec3_t src;
 } cameraShake_t;
 
+typedef struct {
+    qboolean active;
+    int hoveredBank;
+    int hoveredWeapon;
+	float stickX;
+	float stickY;
+	int latchedWeapon;
+	int lastWeapon;
+    int openTime;
+} weaponWheel_t;
+
 //======================================================================
 
 // all cg.stepTime, cg.duckTime, cg.landTime, etc are set to cg.time when the action
@@ -1101,6 +1112,7 @@ typedef struct {
 
 	qboolean simpleZoomed;
 	int simpleZoomTime;
+	qboolean simpleZoomedFollow;        // last known networked zoom state of the player we're following/watching
 
 	float aaStrength;
     float aaDYaw;
@@ -1108,6 +1120,8 @@ typedef struct {
     int   aaEntNum;
 
 	float aaStrengthSmoothed;
+
+	weaponWheel_t weaponWheel;
 
 } cg_t;
 
@@ -1592,6 +1606,8 @@ typedef struct {
 	
 	sfxHandle_t xshieldLoopSound;
 
+	qhandle_t perkProIcons[MAX_PERKS];
+
 } cgMedia_t;
 
 
@@ -1644,6 +1660,40 @@ extern soundScript_t soundScripts[MAX_SOUND_SCRIPTS];
 extern soundScript_t soundScripts[MAX_SOUND_SCRIPTS];
 
 
+// map speaker scripts (sound/maps/<mapname>.sps) -- point sound sources defined outside the BSP entity lump
+
+typedef enum {
+	SPKR_NOT_LOOPED = 0,
+	SPKR_LOOPED_ON,
+	SPKR_LOOPED_OFF
+} speakerLoopType_t;
+
+typedef enum {
+	SPKR_LOCAL = 0,
+	SPKR_GLOBAL,
+	SPKR_NOPVS
+} speakerBroadcastType_t;
+
+typedef struct {
+	char                    filename[MAX_QPATH];
+	sfxHandle_t             noise;
+	vec3_t                  origin;
+	char                    targetname[32];
+
+	speakerLoopType_t       loop;
+	speakerBroadcastType_t  broadcast;
+	int                     wait;           // ms between auto-plays (SPKR_NOT_LOOPED only)
+	int                     random;         // random variance added to wait
+	int                     volume;         // 0-255, default 127
+	int                     range;          // attenuation distance, default 1250
+
+	qboolean                activated;
+	int                     nextActivateTime;
+} scriptSpeaker_t;
+
+#define MAX_SCRIPT_SPEAKERS 256
+extern scriptSpeaker_t scriptSpeakers[MAX_SCRIPT_SPEAKERS];
+extern int             numScriptSpeakers;
 
 
 
@@ -1743,7 +1793,12 @@ typedef struct {
 	// player/AI model scripting (client repository)
 	animScriptData_t animScriptData;
 
+	// world time dilation (weapon wheel slow-mo), mirrors CS_TIMEDILATION, 1.0 = normal speed
+	float timeDilation;
+
 } cgs_t;
+
+
 
 //==============================================================================
 
@@ -1900,6 +1955,7 @@ extern vmCvar_t cg_wolfparticles;
 // Ridah
 extern vmCvar_t cg_gameType;
 extern vmCvar_t cg_newinventory;
+extern vmCvar_t cg_overheal;
 extern vmCvar_t cg_bloodTime;
 extern vmCvar_t cg_norender;
 extern vmCvar_t cg_skybox;
@@ -1984,6 +2040,7 @@ extern vmCvar_t cg_gothic;
 
 extern vmCvar_t cg_simpleZoomFov;
 extern vmCvar_t cg_simpleZoomTimeMs;
+extern vmCvar_t cg_simpleZoomVenomScale;
 
 //
 // cg_main.c
@@ -2002,8 +2059,10 @@ void CG_UpdateCvars( void );
 int CG_CrosshairPlayer( void );
 int CG_LastAttacker( void );
 void CG_LoadMenus( const char *menuFile );
+void CG_LoadHudMenu( void );
 void CG_KeyEvent( int key, qboolean down );
 void CG_MouseEvent( int x, int y );
+void CG_JoystickEvent( int axis, int value );
 void CG_EventHandling( int type );
 
 qboolean CG_GetTag( int clientNum, char *tagname, orientation_t * or );
@@ -2103,6 +2162,8 @@ void CG_ObjectivePrint( const char *str, int charWidth, int team );     // NERVE
 void CG_DrawHead( float x, float y, float w, float h, int clientNum, vec3_t headAngles );
 void CG_DrawActive( stereoFrame_t stereoView );
 void CG_DrawFlagModel( float x, float y, float w, float h, int team );
+
+void CG_DrawWeaponWheel( void ) ;
 
 void CG_DrawTeamBackground( int x, int y, int w, int h, float alpha, int team );
 void CG_OwnerDraw( float x, float y, float w, float h, float text_x, float text_y, int ownerDraw, int ownerDrawFlags, int align, float special, int font, float scale, vec4_t color, qhandle_t shader, int textStyle );
@@ -2204,6 +2265,8 @@ void CG_WeaponBank_f( void );
 void CG_WeaponSuggest( int weap );
 void CG_ResetSimpleZoom(void);
 
+extern int weapBanks[MAX_WEAP_BANKS][MAX_WEAPS_IN_BANK];
+
 void CG_FinishWeaponChange( int lastweap, int newweap );
 
 void CG_RegisterWeapon( int weaponNum, qboolean force );
@@ -2245,6 +2308,10 @@ void CG_DrawHoldableSelect( void );
 
 void CG_OutOfAmmoChange( void );
 void CG_HoldableUsedupChange( void ); //----(SA)	added
+
+void CG_UpdateWeaponWheelSelection( float cursorx, float cursory );
+
+int CG_CollectWeaponWheelWeapons( int *visibleWeapons, int maxWeapons );
 
 //----(SA) added to header to access from outside cg_weapons.c
 void CG_AddDebris( vec3_t origin, vec3_t dir, int speed, int duration, int count );
@@ -2328,6 +2395,15 @@ int CG_SoundScriptPrecache( const char *name );
 qboolean CG_SoundPlaySoundScript( const char *name, vec3_t org, int entnum );
 void CG_SoundPlayIndexedScript( int index, vec3_t org, int entnum );
 void CG_SoundInit( void );
+// done.
+
+// map speaker scripts (sound/maps/<mapname>.sps)
+void CG_ClearScriptSpeakers( void );
+void CG_LoadSpeakerScript( void );
+void CG_AddScriptSpeakers( void );
+qboolean CG_AddScriptSpeaker( scriptSpeaker_t *speaker );
+qboolean CG_DeleteScriptSpeaker( int index );
+qboolean CG_SaveSpeakerScript( void );
 // done.
 
 // Ridah, flamethrower
@@ -2536,6 +2612,8 @@ int         trap_CM_MarkFragments( int numPoints, const vec3_t *points,
 // moves and the listener moves
 void        trap_S_StartSound( vec3_t origin, int entityNum, int entchannel, sfxHandle_t sfx );
 void        trap_S_StartSoundEx( vec3_t origin, int entityNum, int entchannel, sfxHandle_t sfx, int flags );
+void        trap_S_StartSoundVControl( vec3_t origin, int entityNum, int entchannel, sfxHandle_t sfx, int volume );
+qboolean    trap_R_inPVS( const vec3_t p1, const vec3_t p2 );
 void        trap_S_StopLoopingSound( int entnum );
 void        trap_S_StopStreamingSound( int entnum );  // usually AI.  character is talking and needs to be shut up /now/
 
@@ -2698,3 +2776,5 @@ qboolean    trap_GetModelInfo( int clientNum, char *modelName, animModelInfo_t *
 
 // New in IORTCW
 void		*trap_Alloc( int size );
+
+qhandle_t   trap_R_RegisterSmartSkin( const char *name, const char *mapName, qboolean upgraded );

@@ -160,6 +160,40 @@ static void SCR_DrawChar( int x, int y, float size, int ch ) {
 					   cls.charSetShader );
 }
 
+static void SCR_DrawCharExt( int x, int y, float size, int ch, int font ) {
+	int row, col;
+	float frow, fcol;
+	float ax, ay, aw, ah;
+
+	ch &= 255;
+
+	if ( ch == ' ' ) {
+		return;
+	}
+
+	if ( y < -size ) {
+		return;
+	}
+
+	ax = x;
+	ay = y;
+	aw = size;
+	ah = size;
+	SCR_AdjustFrom640( &ax, &ay, &aw, &ah );
+
+	row = ch >> 4;
+	col = ch & 15;
+
+	frow = row * 0.0625;
+	fcol = col * 0.0625;
+	size = 0.0625;
+
+	re.DrawStretchPic( ax, ay, aw, ah,
+					   fcol, frow,
+					   fcol + size, frow + size,
+					   font );
+}
+
 /*
 ** SCR_DrawSmallChar
 ** small chars are drawn at native screen resolution
@@ -175,7 +209,7 @@ void SCR_DrawSmallChar( int x, int y, int ch ) {
 		return;
 	}
 
-	if ( y < -SMALLCHAR_HEIGHT ) {
+	if ( y < -g_smallchar_height ) {
 		return;
 	}
 
@@ -186,7 +220,7 @@ void SCR_DrawSmallChar( int x, int y, int ch ) {
 	fcol = col * 0.0625;
 	size = 0.0625;
 
-	re.DrawStretchPic( x, y, SMALLCHAR_WIDTH, SMALLCHAR_HEIGHT,
+	re.DrawStretchPic( x, y, g_smallchar_width, g_smallchar_height,
 					   fcol, frow,
 					   fcol + size, frow + size,
 					   cls.charSetShader );
@@ -249,6 +283,50 @@ void SCR_DrawStringExt( int x, int y, float size, const char *string, float *set
 	re.SetColor( NULL );
 }
 
+void SCR_DrawStringExt2( int x, int y, float size, const char *string, float *setColor, qboolean forceColor,
+		qboolean noColorEscape, int font ) {
+	vec4_t color;
+	const char  *s;
+	int xx;
+
+	// draw the drop shadow
+	color[0] = color[1] = color[2] = 0;
+	color[3] = setColor[3];
+	re.SetColor( color );
+	s = string;
+	xx = x;
+	while ( *s ) {
+		if ( !noColorEscape && Q_IsColorString( s ) ) {
+			s += 2;
+			continue;
+		}
+		SCR_DrawCharExt( xx + 2, y + 2, size, *s, font );
+		xx += size;
+		s++;
+	}
+
+	s = string;
+	xx = x;
+	re.SetColor( setColor );
+	while ( *s ) {
+		if ( Q_IsColorString( s ) ) {
+			if ( !forceColor ) {
+				memcpy( color, g_color_table[ColorIndex( *( s + 1 ) )], sizeof( color ) );
+				color[3] = setColor[3];
+				re.SetColor( color );
+			}
+			if ( !noColorEscape ) {
+				s += 2;
+				continue;
+			}
+		}
+		SCR_DrawCharExt( xx, y, size, *s, font );
+		xx += size;
+		s++;
+	}
+	re.SetColor( NULL );
+}
+
 
 void SCR_DrawBigString( int x, int y, const char *s, float alpha, qboolean noColorEscape ) {
 	float color[4];
@@ -294,7 +372,7 @@ void SCR_DrawSmallStringExt( int x, int y, const char *string, float *setColor, 
 			}
 		}
 		SCR_DrawSmallChar( xx, y, *s );
-		xx += SMALLCHAR_WIDTH;
+		xx += g_smallchar_width;
 		s++;
 	}
 	re.SetColor( NULL );
@@ -326,6 +404,95 @@ static int SCR_Strlen( const char *str ) {
 */
 int SCR_GetBigStringWidth( const char *str ) {
 	return SCR_Strlen( str ) * BIGCHAR_WIDTH;
+}
+
+/*
+==================
+SCR_Text_AutoWrapped_Paint
+==================
+*/
+void SCR_Text_AutoWrapped_Paint( float x, float y, float scale, const char *text, float maxLineWidth, vec4_t color,
+								int alignType, int font ) {
+	const char *p, *textPtr, *newLinePtr;
+	char buff[1024];
+	int len, textWidth, newLine, newLineWidth;
+	float x2, y2, maxLineHeight;
+	float size;
+	vec4_t backColor;
+
+	if ( !font ) {
+		Com_DPrintf(S_COLOR_YELLOW "SCR_Text_AutoWrapped_Paint: switch to the default charSetShader\n");
+		font = cls.charSetShader;
+	}
+
+	newLinePtr = NULL;
+	if ( !text || !text[0] ) {
+		return;
+	} else {
+		textPtr = text;
+	}
+
+	if ( !color ) {
+		return;
+	}
+
+	re.SetColor( color );
+
+	backColor[0] = backColor[1] = backColor[2] = 0;
+	backColor[3] = 1.0;
+
+	size = BIGCHAR_HEIGHT * scale;
+	maxLineHeight = BIGCHAR_HEIGHT * scale;
+	textWidth = 0;
+
+	x2 = x;
+	y2 = y;
+	len = 0;
+	buff[0] = '\0';
+	newLine = 0;
+	newLineWidth = 0;
+	p = textPtr;
+	while ( p ) {
+		if ( *p == ' ' || *p == '\t' || *p == '\n' || *p == '\0' ) {
+			newLine = len;
+			newLinePtr = p + 1;
+			newLineWidth = textWidth;
+		}
+
+		textWidth = SCR_GetBigStringWidth(buff) * scale;
+		if ( ( newLine && textWidth > maxLineWidth ) || *p == '\n' || *p == '\0' ) {
+			if ( len ) {
+				if ( alignType == TEXT_ALIGN_LEFT ) {
+					x2 = x;
+				} else if ( alignType == TEXT_ALIGN_RIGHT ) {
+					x2 = x + maxLineWidth - newLineWidth;
+				} else if ( alignType == TEXT_ALIGN_CENTER ) {
+					x2 = x + (maxLineWidth - newLineWidth) * 0.5;
+				}
+				
+				buff[newLine] = '\0';
+				SCR_DrawStringExt2( x2, y2, size, buff, color, qfalse, qfalse, font );
+			}
+
+			if ( *p == '\0' ) {
+				break;
+			}
+
+			y2 += maxLineHeight + 3.0f;
+			p = newLinePtr;
+			len = 0;
+			newLine = 0;
+			newLineWidth = 0;
+			continue;
+		}
+		buff[len++] = *p++;
+
+		if ( buff[len-1] == 13 ) {
+			buff[len-1] = ' ';
+		}
+
+		buff[len] = '\0';
+	}
 }
 
 
@@ -574,9 +741,7 @@ void SCR_UpdateScreen( void ) {
 	}
 	recursive = 1;
 
-	// If there is no VM, there are also no rendering commands issued. Stop the renderer in
-	// that case.
-	if( uivm || com_dedicated->integer )
+	if( ( uivm || com_dedicated->integer ) && !com_minimized->integer )
 	{
 		// XXX
 		int in_anaglyphMode = Cvar_VariableIntegerValue("r_anaglyphMode");

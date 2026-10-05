@@ -218,8 +218,13 @@ typedef enum {
 
 	CG_GETMODELINFO,
 
+	CG_S_STARTSOUNDVCONTROL,
+	CG_R_INPVS,
+
 	// New in IORTCW
-	CG_ALLOC = 900
+	CG_ALLOC = 900,
+
+	CG_R_REGISTERSMARTSKIN
 
 } cgameImport_t;
 
@@ -274,6 +279,9 @@ typedef enum {
 
 	CG_GET_TAG,
 //	qboolean CG_GetTag( int clientNum, char *tagname, orientation_t *or );
+
+    CG_JOYSTICK_EVENT,
+// void CG_JoystickEvent( int axis, int value );
 
 	MAX_CGAME_EXPORT
 

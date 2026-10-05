@@ -40,6 +40,8 @@ If you have questions concerning this license or the applicable additional terms
 displayContextDef_t cgDC;
 
 int forceModelModificationCount = -1;
+int hudStyleModificationCount = -1;
+extern menuDef_t *menuScoreboard;
 
 void CG_Init( int serverMessageNum, int serverCommandSequence );
 void CG_Shutdown( void );
@@ -83,6 +85,9 @@ Q_EXPORT intptr_t vmMain( intptr_t command, intptr_t arg0, intptr_t arg1, intptr
 		cgDC.cursory = cgs.cursorY;
 		CG_MouseEvent( arg0, arg1 );
 		return 0;
+	case CG_JOYSTICK_EVENT:
+		CG_JoystickEvent(arg0, arg1);
+		break;
 	default:
 		CG_Error( "vmMain: unknown command %li", (long)command );
 		break;
@@ -229,6 +234,7 @@ vmCvar_t cg_wolfparticles;
 // Ridah
 vmCvar_t cg_gameType;
 vmCvar_t cg_newinventory;
+vmCvar_t cg_overheal;
 vmCvar_t cg_bloodTime;
 vmCvar_t cg_norender;
 vmCvar_t cg_skybox;
@@ -322,6 +328,7 @@ vmCvar_t cg_gothic;
 
 vmCvar_t cg_simpleZoomFov;
 vmCvar_t cg_simpleZoomTimeMs;
+vmCvar_t cg_simpleZoomVenomScale;
 
 typedef struct {
 	vmCvar_t    *vmCvar;
@@ -510,6 +517,7 @@ cvarTable_t cvarTable[] = {
 	// Ridah
 	{&cg_gameType, "g_gametype", "0", 0},					 // communicated by systeminfo
 	{&cg_newinventory, "g_newinventory", "0", CVAR_ARCHIVE}, // communicated by systeminfo
+	{&cg_overheal, "g_overheal", "0", CVAR_ARCHIVE}, // communicated by systeminfo
 	{&cg_norender, "cg_norender", "0", 0},					 // only used during single player, to suppress rendering until the server is ready
 
 	{&cg_gameSkill, "g_gameskill", "2", 0}, // communicated by systeminfo	// (SA) new default '2' (was '1')
@@ -587,6 +595,7 @@ cvarTable_t cvarTable[] = {
 
 	{&cg_simpleZoomFov, "cg_simpleZoomFov", "60", CVAR_ARCHIVE},
 	{&cg_simpleZoomTimeMs, "cg_simpleZoomTimeMs", "120", CVAR_ARCHIVE},
+	{&cg_simpleZoomVenomScale, "cg_simpleZoomVenomScale", "0.5", CVAR_ARCHIVE},
 
 };
 int cvarTableSize = ARRAY_LEN( cvarTable );
@@ -614,6 +623,7 @@ void CG_RegisterCvars( void ) {
 	cgs.localServer = atoi( var );
 
 	forceModelModificationCount = cg_forceModel.modificationCount;
+	hudStyleModificationCount = cg_hudStyle.modificationCount;
 
 	trap_Cvar_Register( NULL, "model", DEFAULT_MODEL, CVAR_USERINFO | CVAR_ARCHIVE );
 	trap_Cvar_Register( NULL, "head", DEFAULT_HEAD, CVAR_USERINFO | CVAR_ARCHIVE );
@@ -670,6 +680,13 @@ void CG_UpdateCvars( void ) {
 	// Send any relevent updates
 	if ( fSetFlags ) {
 		CG_setClientFlags();
+	}
+
+	// reload the hud in place if cg_hudStyle changed, no vid_restart needed
+	if ( hudStyleModificationCount != cg_hudStyle.modificationCount ) {
+		hudStyleModificationCount = cg_hudStyle.modificationCount;
+		CG_LoadHudMenu();
+		menuScoreboard = NULL;
 	}
 }
 
@@ -968,23 +985,25 @@ static void CG_LoadTranslationStrings( void ) {
 	}
 }
 
-// a straight dupe right now so I don't mess anything up while adding this
-static void CG_LoadbonusStrings( void ) {
+// key/value format, matched by name instead of position, so multiple files can extend the table
+static void CG_ParseBonusStringsFile( const char *filename, qboolean warnIfMissing ) {
 	char buffer[MAX_BUFFER];
 	char *text;
-	char filename[MAX_QPATH];
 	fileHandle_t f;
 	int len, i, numStrings;
-	char *token;
+	char *token, *value;
+	char key[MAX_QPATH]; // COM_ParseExt reuses one buffer, so copy the key out before parsing the value
 
-	Com_sprintf( filename, MAX_QPATH, "text/bonus_strings.txt" );
 	len = trap_FS_FOpenFile( filename, &f, FS_READ );
 	if ( len <= 0 ) {
-		CG_Printf( S_COLOR_RED "WARNING: string translation file (bonus_strings.txt not found in main/text)\n" );
+		if ( warnIfMissing ) {
+			CG_Printf( S_COLOR_RED "WARNING: string translation file (%s not found in main/text)\n", filename );
+		}
 		return;
 	}
 	if ( len > MAX_BUFFER ) {
-		CG_Error( "%s is too big, make it smaller (max = %i bytes)\n", filename, MAX_BUFFER );
+		CG_Printf( S_COLOR_RED "WARNING: %s is too big, make it smaller (max = %i bytes)\n", filename, MAX_BUFFER );
+		return;
 	}
 
 	// load the file into memory
@@ -994,19 +1013,67 @@ static void CG_LoadbonusStrings( void ) {
 	// parse the list
 	text = buffer;
 
+	token = COM_ParseExt( &text, qtrue );
+	if ( token[0] != '{' ) {
+		CG_Printf( S_COLOR_RED "WARNING: expecting '{', found '%s' instead in bonus string file \"%s\"\n", token, filename );
+		return;
+	}
+
 	numStrings = sizeof( bonusStrings ) / sizeof( bonusStrings[0] ) - 1;
 
-	for ( i = 0; i < numStrings; i++ ) {
+	while ( 1 ) {
 		token = COM_ParseExt( &text, qtrue );
 		if ( !token[0] ) {
+			CG_Printf( S_COLOR_RED "WARNING: no concluding '}' in bonus string file \"%s\"\n", filename );
 			break;
 		}
+		if ( token[0] == '}' ) {
+			break;
+		}
+		Q_strncpyz( key, token, sizeof( key ) );
+
+		// existing entry by key, or first free slot
+		for ( i = 0; i < numStrings; i++ ) {
+			if ( !bonusStrings[i].name || !strlen( bonusStrings[i].name ) || !strcmp( bonusStrings[i].name, key ) ) {
+				break;
+			}
+		}
+
+		value = COM_ParseExt( &text, qfalse );
+
+		if ( i >= numStrings ) {
+			CG_Printf( S_COLOR_RED "WARNING: too many bonus strings, ignoring \"%s\" (increase MAX_BONUSSTRINGS)\n", key );
+			continue;
+		}
+
+		if ( !bonusStrings[i].name || !strlen( bonusStrings[i].name ) ) {
 #ifdef Q3_VM // new IORTCW syscall (works for qvms and dlls), but have dlls use vanilla rtcw compatible code
-		bonusStrings[i].localname = (char *)trap_Alloc( strlen( token ) + 1 );
+			bonusStrings[i].name = (char *)trap_Alloc( strlen( key ) + 1 );
 #else
-		bonusStrings[i].localname = (char *)malloc( strlen( token ) + 1 );
+			bonusStrings[i].name = (char *)malloc( strlen( key ) + 1 );
 #endif
-		strcpy( bonusStrings[i].localname, token );
+			strcpy( bonusStrings[i].name, key );
+		}
+
+#ifdef Q3_VM
+		bonusStrings[i].localname = (char *)trap_Alloc( strlen( value ) + 1 );
+#else
+		bonusStrings[i].localname = (char *)malloc( strlen( value ) + 1 );
+#endif
+		strcpy( bonusStrings[i].localname, value );
+	}
+}
+
+// also loads bonus_strings_1.txt.._9.txt, so custom campaigns can add keys without editing the base file
+static void CG_LoadbonusStrings( void ) {
+	char filename[MAX_QPATH];
+	int i;
+
+	CG_ParseBonusStringsFile( "text/bonus_strings.txt", qtrue );
+
+	for ( i = 1; i < 10; i++ ) {
+		Com_sprintf( filename, sizeof( filename ), "text/bonus_strings_%d.txt", i );
+		CG_ParseBonusStringsFile( filename, qfalse );
 	}
 }
 
@@ -1018,7 +1085,7 @@ static void CG_LoadTranslationTextStrings(const char *file) {
 	int len, i;
 	char *token;
 
-	Com_sprintf(filename, MAX_QPATH, "%s", file);
+	Q_strncpyz(filename, file, sizeof(filename));
 	len = trap_FS_FOpenFile(filename, &f, FS_READ);
 	if (len <= 0) {
 		CG_Printf(S_COLOR_RED "WARNING: string translation file (main/%s)\n", filename);
@@ -1184,6 +1251,10 @@ static void CG_RegisterSounds( void ) {
 	// Ridah, init sound scripts
 	CG_SoundInit();
 	// done.
+
+	// map speaker scripts (sound/maps/<mapname>.sps)
+	CG_ClearScriptSpeakers();
+	CG_LoadSpeakerScript();
 
 	cgs.media.n_health = trap_S_RegisterSound( "sound/items/n_health.wav" );
 	cgs.media.noFireUnderwater = trap_S_RegisterSound( "sound/weapons/underwaterfire.wav" ); 
@@ -1671,6 +1742,13 @@ static void CG_RegisterGraphics( void ) {
 	cgs.media.shardCeramic1 = trap_R_RegisterModel( "models/shards/ceramic1.md3" );
 	cgs.media.shardCeramic2 = trap_R_RegisterModel( "models/shards/ceramic2.md3" );
 	// done
+
+	cgs.media.perkProIcons[PERK_RUNNER] = trap_R_RegisterShaderNoMip("icons/perk_runner_pro.tga");
+	cgs.media.perkProIcons[PERK_SCAVENGER] = trap_R_RegisterShaderNoMip("icons/perk_scavenger_pro.tga");
+	cgs.media.perkProIcons[PERK_RIFLING] = trap_R_RegisterShaderNoMip("icons/perk_rifling_pro.tga");
+	cgs.media.perkProIcons[PERK_RESILIENCE] = trap_R_RegisterShaderNoMip("icons/perk_regen_pro.tga");
+	cgs.media.perkProIcons[PERK_SECONDCHANCE] = trap_R_RegisterShaderNoMip("icons/perk_secondchance_pro.tga");
+	cgs.media.perkProIcons[PERK_WEAPONHANDLING] = trap_R_RegisterShaderNoMip("icons/perk_weaponhandling_pro.tga");
 
 	cgs.media.shardRubble1 = trap_R_RegisterModel( "models/mapobjects/debris/brick000.md3" );
 	cgs.media.shardRubble2 = trap_R_RegisterModel( "models/mapobjects/debris/brick001.md3" );
@@ -2733,6 +2811,7 @@ void CG_LoadHudMenu( void ) {
 
 	Init_Display( &cgDC );
 
+	String_Init();
 	Menu_Reset();
 
     if (cg_hudStyle.integer == 1) {
@@ -2866,6 +2945,12 @@ void CG_Init( int serverMessageNum, int serverCommandSequence ) {
 
 	s = CG_ConfigString( CS_LEVEL_START_TIME );
 	cgs.levelStartTime = atoi( s );
+
+	s = CG_ConfigString( CS_TIMEDILATION );
+	cgs.timeDilation = s[0] ? (float)atof( s ) : 1.0f;
+	if ( cgs.timeDilation <= 0.0f ) {
+		cgs.timeDilation = 1.0f;
+	}
 
 	cg.refdef_current = &cg.refdef;
 

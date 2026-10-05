@@ -1282,6 +1282,8 @@ void Cmd_StopCamera_f( gentity_t *ent ) {
 				if ( g_gametype.integer != GT_SURVIVAL ) {
 					G_SaveGame( NULL );
 					G_SaveGame( "lastcheckpoint" );
+					trap_Cvar_Set( "g_checkpointReady", "1" );
+					trap_Cvar_Set( "g_levelSelectPending", "0" );
 				}
 
 				break;
@@ -2168,6 +2170,13 @@ void ClientCommand( int clientNum ) {
 	}
 //----(SA)	end
 
+	if ( Q_stricmp( cmd, "simplezoom" ) == 0 ) {
+		char arg[8];
+		trap_Argv( 1, arg, sizeof( arg ) );
+		ent->client->ps.simpleZoomed = atoi( arg ) ? qtrue : qfalse;
+		return;
+	}
+
 	// ignore all other commands when at intermission
 	if ( level.intermissiontime ) {
 		Cmd_Say_f( ent, qfalse, qtrue );
@@ -2200,6 +2209,10 @@ void ClientCommand( int clientNum ) {
 		Cmd_Team_f( ent );
 	} else if ( Q_stricmp( cmd, "where" ) == 0 )  {
 		Cmd_Where_f( ent );
+	} else if ( Q_stricmp( cmd, "wwheel" ) == 0 )  {
+		char arg[8];
+		trap_Argv( 1, arg, sizeof( arg ) );
+		ent->client->pers.weaponWheelOpen = ( atoi( arg ) != 0 );
 	}
 //	else if (Q_stricmp (cmd, "callvote") == 0)	//----(SA)	id requests these gone in sp
 //		Cmd_CallVote_f (ent);

@@ -54,9 +54,9 @@ If you have questions concerning this license or the applicable additional terms
 #endif
 #else
 #ifdef USE_LOCAL_HEADERS
-#	include "SDL_opengl.h"
+#	include "SDL3/SDL_opengl.h"
 #else
-#	include <SDL_opengl.h>
+#	include <SDL3/SDL_opengl.h>
 #endif
 #endif
 
@@ -395,6 +395,31 @@ extern void (APIENTRYP qglPNTrianglesfATI)(GLenum pname, GLfloat param);
 	GLE(void, DeleteVertexArrays, GLsizei n, const GLuint *arrays) \
 	GLE(void, GenVertexArrays, GLsizei n, GLuint *arrays) \
 
+// GL_ARB_vertex_program / GL_ARB_fragment_program - legacy ARB assembly shaders, used instead of GLSL (see tr_arb.c)
+#ifndef GL_VERTEX_PROGRAM_ARB
+#define GL_VERTEX_PROGRAM_ARB               0x8620
+#endif
+#ifndef GL_FRAGMENT_PROGRAM_ARB
+#define GL_FRAGMENT_PROGRAM_ARB             0x8804
+#endif
+#ifndef GL_PROGRAM_FORMAT_ASCII_ARB
+#define GL_PROGRAM_FORMAT_ASCII_ARB         0x8875
+#endif
+#ifndef GL_PROGRAM_ERROR_POSITION_ARB
+#define GL_PROGRAM_ERROR_POSITION_ARB       0x864B
+#endif
+#ifndef GL_PROGRAM_ERROR_STRING_ARB
+#define GL_PROGRAM_ERROR_STRING_ARB         0x8874
+#endif
+
+#define QGL_ARB_vertex_fragment_program_PROCS \
+	GLE(void, GenProgramsARB, GLsizei n, GLuint *programs) \
+	GLE(void, DeleteProgramsARB, GLsizei n, const GLuint *programs) \
+	GLE(void, BindProgramARB, GLenum target, GLuint program) \
+	GLE(void, ProgramStringARB, GLenum target, GLenum format, GLsizei len, const GLvoid *string) \
+	GLE(void, ProgramLocalParameter4fARB, GLenum target, GLuint index, GLfloat x, GLfloat y, GLfloat z, GLfloat w) \
+	GLE(void, ProgramLocalParameter4fvARB, GLenum target, GLuint index, const GLfloat *params) \
+
 #ifndef GL_ARB_texture_compression_rgtc
 #define GL_ARB_texture_compression_rgtc
 #define GL_COMPRESSED_RED_RGTC1                       0x8DBB
@@ -459,6 +484,7 @@ QGL_3_0_PROCS;
 QGL_ARB_occlusion_query_PROCS;
 QGL_ARB_framebuffer_object_PROCS;
 QGL_ARB_vertex_array_object_PROCS;
+QGL_ARB_vertex_fragment_program_PROCS;
 QGL_EXT_direct_state_access_PROCS;
 #undef GLE
 

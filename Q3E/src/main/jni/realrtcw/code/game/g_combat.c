@@ -430,6 +430,7 @@ void player_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int
 	}
 
 	self->client->ps.pm_type = PM_DEAD;
+	self->client->pers.weaponWheelOpen = qfalse;
 
 	if ( attacker ) {
 		killer = attacker->s.number;
@@ -726,6 +727,7 @@ qboolean IsHeadShotWeapon( int mod, gentity_t *targ, gentity_t *attacker ) {
 	case MOD_FG42SCOPE:
 	case MOD_SNOOPERSCOPE:
 	case MOD_DELISLE:
+	case MOD_DELISLESCOPE:
 	case MOD_SNIPERRIFLE:
 	case MOD_BROWNING:
 	case MOD_MG42M:
@@ -1109,6 +1111,14 @@ void G_DamageExt( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 	if ( dflags & DAMAGE_NO_KNOCKBACK ) {
 		knockback = 0;
 	}
+
+	// cant push big guys. too heavy. Survival only.
+	if (g_gametype.integer == GT_SURVIVAL ) {
+	if (targ->aiCharacter == AICHAR_HEINRICH || targ->aiCharacter == AICHAR_HELGA || targ->aiCharacter == AICHAR_PROTOSOLDIER || targ->aiCharacter == AICHAR_SUPERSOLDIER || targ->aiCharacter == AICHAR_SUPERSOLDIER_LAB)
+	{
+		knockback = 0;
+	}
+    }
 
 	// figure momentum add, even if the damage won't be taken
 	if ( knockback && targ->client ) {

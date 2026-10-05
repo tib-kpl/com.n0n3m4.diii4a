@@ -884,6 +884,7 @@ static void CG_DrawPerks( rectDef_t *rect, int font, float scale, qboolean draw2
     int i, numPerks = 0;
     gitem_t *item;
     float x, y = 20; // Top part of the screen
+    qhandle_t icon;
 
 	if (cg_gameType.integer != GT_SURVIVAL)
 	{
@@ -910,17 +911,15 @@ static void CG_DrawPerks( rectDef_t *rect, int font, float scale, qboolean draw2
 
             if ( item ) {
                 CG_RegisterItemVisuals( item - bg_itemlist );
-                CG_DrawPic( x, y, rect->w, rect->h, cg_items[item - bg_itemlist].icons[0] );
 
-				// PRO overlay (no new assets)
-				if (cg.snap->ps.perks[i] >= 2)
-				{
-					float ts = rect->w * 0.25f;		// compact size
-					float tx = x + rect->w * 0.12f; // move left from right edge
-					float ty = y - 10;				// small top padding
+                icon = cg_items[item - bg_itemlist].icons[0];
 
-					CG_DrawStringExt(tx, ty, "^3PRO", colorWhite, qfalse, qtrue, ts, ts, 0);
+				// PRO icon replacement
+				if ( cg.snap->ps.perks[i] >= 2 && cgs.media.perkProIcons[i] ) {
+					icon = cgs.media.perkProIcons[i];
 				}
+
+                CG_DrawPic( x, y, rect->w, rect->h, icon );
 
 				x += rect->w + 5; // 5 is the space between icons
             }
@@ -2088,10 +2087,37 @@ static void CG_DrawFatigue( rectDef_t *rect, vec4_t color, int align ) {
 static void CG_DrawWeapRecharge( rectDef_t *rect, vec4_t color, int align ) {
 	float barFrac;
 	float chargeTime;
-	int weap = 0;
 	int flags = 0;
 	//qboolean fade = qfalse;
 	vec4_t bgcolor = {1.0f, 1.0f, 1.0f, 0.25f};
+
+	switch ( cg.snap->ps.weapon ) {
+	case WP_AIRSTRIKE:
+		chargeTime = cg_LTChargeTime.value;
+		break;
+	case WP_POISONGAS:
+		chargeTime = cg_medicChargeTime.value;
+		break;
+	case WP_DYNAMITE_ENG:
+		chargeTime = cg_engineerChargeTime.value;
+		break;
+	case WP_SMOKE_BOMB:
+		chargeTime = cg_cvopsChargeTime.value;
+		break;
+	default:
+		if ( COM_BitCheck( cg.snap->ps.weapons, WP_AIRSTRIKE ) ) {
+			chargeTime = cg_LTChargeTime.value;
+		} else if ( COM_BitCheck( cg.snap->ps.weapons, WP_POISONGAS ) ) {
+			chargeTime = cg_medicChargeTime.value;
+		} else if ( COM_BitCheck( cg.snap->ps.weapons, WP_DYNAMITE_ENG ) ) {
+			chargeTime = cg_engineerChargeTime.value;
+		} else if ( COM_BitCheck( cg.snap->ps.weapons, WP_SMOKE_BOMB ) ) {
+			chargeTime = cg_cvopsChargeTime.value;
+		} else {
+			return;
+		}
+		break;
+	}
 
 	if ( align != HUD_HORIZONTAL) {
 		flags |= 4;   // BAR_VERT
@@ -2099,54 +2125,26 @@ static void CG_DrawWeapRecharge( rectDef_t *rect, vec4_t color, int align ) {
 	}
 	flags |= 16;
 
-// JPW NERVE -- added drawWeaponPercent in multiplayer
+	barFrac = (float)( cg.time - cg.snap->ps.classWeaponTime ) / chargeTime;
 
-		weap = cg.snap->ps.weapon;
+	if ( barFrac > 1.0 ) {
+		barFrac = 1.0;
+	}
 
-		
-		// Determine charge time based on class
-		switch (cg.snap->ps.stats[STAT_PLAYER_CLASS])
-		{
-		case PC_MEDIC:
-			chargeTime = cg_medicChargeTime.value;
-			break;
-		case PC_ENGINEER:
-			chargeTime = cg_engineerChargeTime.value;
-			break;
-		case PC_SOLDIER:
-			chargeTime = cg_soldierChargeTime.value;
-			break;
-		case PC_LT:
-			chargeTime = cg_LTChargeTime.value;
-			break;
-	    case PC_CVOPS:
-		    chargeTime = cg_cvopsChargeTime.value;
-		default:
-		    chargeTime = 30000;
-			break;
-		}
+	color[0] = 1.0f;
+	color[1] = color[2] = barFrac;
+	color[3] = 0.25 + barFrac * 0.5;
 
-		barFrac = (float)( cg.time - cg.snap->ps.classWeaponTime ) / chargeTime;
+	/*if ( fade ) {
+		bgcolor[3] *= 0.4f;
+		color[3] *= 0.4;
+	}*/
 
-		if ( barFrac > 1.0 ) {
-			barFrac = 1.0;
-		}
+	CG_FilledBar( rect->x, rect->y + 6, rect->w, rect->h * 0.84f, color, NULL, bgcolor, barFrac, flags );
 
-		color[0] = 1.0f;
-		color[1] = color[2] = barFrac;
-		color[3] = 0.25 + barFrac * 0.5;
-
-		/*if ( fade ) {
-			bgcolor[3] *= 0.4f;
-			color[3] *= 0.4;
-		}*/
-
-		CG_FilledBar( rect->x, rect->y + 6, rect->w, rect->h * 0.84f, color, NULL, bgcolor, barFrac, flags );
-
-		color[1] = color[2] = 1.0f;
-		color[3] = cg_hudAlpha.value;
-		trap_R_SetColor( color );
-
+	color[1] = color[2] = 1.0f;
+	color[3] = cg_hudAlpha.value;
+	trap_R_SetColor( color );
 }
 /*
 ==============
@@ -2390,6 +2388,38 @@ void CG_OwnerDraw( float x, float y, float w, float h, float text_x, float text_
 void CG_MouseEvent( int x, int y ) {
 	int n;
 
+	if ( cg.weaponWheel.active ) {
+
+		// 1. Apply mouse movement
+		cgs.cursorX += x;
+		cgs.cursorY += y;
+
+		// 2. Clamp to screen (virtual 640x480 space)
+		if ( cgs.cursorX < 0 ) cgs.cursorX = 0;
+		if ( cgs.cursorX > 640 ) cgs.cursorX = 640;
+
+		if ( cgs.cursorY < 0 ) cgs.cursorY = 0;
+		if ( cgs.cursorY > 480 ) cgs.cursorY = 480;
+
+		// 3. Clamp to wheel radius (THIS is the important part)
+		float cx = SCREEN_WIDTH * 0.35f;
+		float cy = SCREEN_HEIGHT * 0.5f;
+
+		float dx = cgs.cursorX - cx;
+		float dy = cgs.cursorY - cy;
+
+		float len = sqrtf( dx * dx + dy * dy );
+		float maxRadius = 120.0f;
+
+		if ( len > maxRadius ) {
+			float scale = maxRadius / len;
+			cgs.cursorX = cx + dx * scale;
+			cgs.cursorY = cy + dy * scale;
+		}
+
+		return;
+	}
+
 	if ( ( cg.predictedPlayerState.pm_type == PM_NORMAL || cg.predictedPlayerState.pm_type == PM_SPECTATOR ) && cg.showScores == qfalse ) {
 		trap_Key_SetCatcher( 0 );
 		return;
@@ -2423,6 +2453,28 @@ void CG_MouseEvent( int x, int y ) {
 		Display_MouseMove( NULL, cgs.cursorX, cgs.cursorY );
 	}
 
+}
+
+#define JOY_AXIS_LOOK_X 2
+#define JOY_AXIS_LOOK_Y 3
+
+void CG_JoystickEvent( int axis, int value ) {
+
+    if ( !cg.weaponWheel.active ) {
+        return;
+    }
+
+    float norm = value / 32767.0f;
+
+    // right stick assumed
+	if (axis == JOY_AXIS_LOOK_X)
+	{
+		cg.weaponWheel.stickX = norm;
+	}
+	else if (axis == JOY_AXIS_LOOK_Y)
+	{
+		cg.weaponWheel.stickY = norm;
+	}
 }
 
 /*

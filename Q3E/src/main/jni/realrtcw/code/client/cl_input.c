@@ -415,18 +415,15 @@ void CL_KeyMove( usercmd_t *cmd ) {
 	side += movespeed * CL_KeyState( &kb[KB_MOVERIGHT] );
 	side -= movespeed * CL_KeyState( &kb[KB_MOVELEFT] );
 
-// Why would anyone disable strafing when holding down use key?
-//----(SA)	added
-	// if ( cmd->buttons & BUTTON_ACTIVATE ) {
-	// 	if ( side > 0 ) {
-	// 		cmd->wbuttons |= WBUTTON_LEANRIGHT;
-	// 	} else if ( side < 0 ) {
-	// 		cmd->wbuttons |= WBUTTON_LEANLEFT;
-	// 	}
+	if ( cl_useKeyLean->integer && ( cmd->buttons & BUTTON_ACTIVATE ) ) {
+		if ( side > 0 ) {
+			cmd->wbuttons |= WBUTTON_LEANRIGHT;
+		} else if ( side < 0 ) {
+			cmd->wbuttons |= WBUTTON_LEANLEFT;
+		}
 
-	// 	side = 0;   // disallow the strafe when holding 'activate'
-	// }
-//----(SA)	end
+		side = 0;   // disallow strafe when holding activate
+	}
 
 	up += movespeed * CL_KeyState( &kb[KB_UP] );
 	up -= movespeed * CL_KeyState( &kb[KB_DOWN] );
@@ -459,6 +456,11 @@ void CL_MouseEvent( int dx, int dy, int time ) {
     // Any real mouse movement marks KBM as active input device
     if ( dx || dy ) {
         s_lastMouseInputTime = time;
+    }
+
+	if ( cl_weaponWheelActive && cl_weaponWheelActive->integer ) {
+        VM_Call( cgvm, CG_MOUSE_EVENT, dx, dy );
+        return;
     }
 
     if ( Key_GetCatcher( ) & KEYCATCH_UI ) {
@@ -497,6 +499,13 @@ void CL_JoystickEvent( int axis, int value, int time ) {
     if ( fabsf(norm) > 0.08f ) {
         s_lastJoyInputTime = time;
     }
+
+	if (cl_weaponWheelActive && cl_weaponWheelActive->integer)
+	{
+		VM_Call(cgvm, CG_JOYSTICK_EVENT, axis, value);
+		return;
+	}
+	
 }
 
 static qboolean CL_UsingGamepadNow( void )
@@ -666,9 +675,30 @@ void CL_JoystickMove( usercmd_t *cmd ) {
     float yaw   = (j_yaw->value   * j_lookSens->value) * yawAxis;
     float pitch = (j_pitch->value * j_lookSens->value) * pitchAxis;
 
-    float forward = (j_forward->value * j_moveSens->value) * cl.joystickAxis[j_forward_axis->integer];
+	if (j_invertLook && j_invertLook->integer)
+	{
+		pitch = -pitch;
+	}
+
+	float forward = (j_forward->value * j_moveSens->value) * cl.joystickAxis[j_forward_axis->integer];
     float right   = (j_side->value    * j_moveSens->value) * cl.joystickAxis[j_side_axis->integer];
 	float up = (j_up->value * j_moveSens->value) * cl.joystickAxis[j_up_axis->integer];
+
+	if (cl_useKeyLean->integer && (cmd->buttons & BUTTON_ACTIVATE))
+	{
+		const float leanDeadzone = 0.25f;
+
+		if (right > leanDeadzone)
+		{
+			cmd->wbuttons |= WBUTTON_LEANRIGHT;
+			right = 0.0f;
+		}
+		else if (right < -leanDeadzone)
+		{
+			cmd->wbuttons |= WBUTTON_LEANLEFT;
+			right = 0.0f;
+		}
+	}
 
 	// Analog-walk
 	if (j_walk_threshold && j_walk_threshold->value > 0.0f)
@@ -728,7 +758,7 @@ void CL_JoystickMove( usercmd_t *cmd ) {
 // Aim Assist (gamepad) - affects only look (yaw/pitch)
 // Drop-in replacement for your current aim assist block inside CL_JoystickMove()
 // ---------------------------------------------------------
-if ( j_aimassist && j_aimassist->integer && CL_UsingGamepadNow() ) {
+if ( j_aimassist && j_aimassist->integer && CL_UsingGamepadNow() && !cl_weaponWheelActive->integer ) {
     float strength = cl.cgameAA_Strength; // 0..1 from cgame
     if ( strength > 0.0f ) {
 
@@ -945,23 +975,40 @@ if ( j_aimassist && j_aimassist->integer && CL_UsingGamepadNow() ) {
 
 aimassist_done:
 ;
-    if ( !kb[KB_STRAFE].active ) {
-        cl.viewangles[YAW] += anglespeed * ( yaw * cl.cgameSensitivity );
-        cmd->rightmove = ClampChar( cmd->rightmove + (int)right );
-    } else {
-        cl.viewangles[YAW] += anglespeed * ( right * cl.cgameSensitivity );
-        cmd->rightmove = ClampChar( cmd->rightmove + (int)yaw );
-    }
 
-    if ( kb[KB_MLOOK].active ) {
-        cl.viewangles[PITCH] += anglespeed * ( forward * cl.cgameSensitivity );
-        cmd->forwardmove = ClampChar( cmd->forwardmove + (int)pitch );
-    } else {
-        cl.viewangles[PITCH] += anglespeed * ( pitch * cl.cgameSensitivity );
-        cmd->forwardmove = ClampChar( cmd->forwardmove + (int)forward );
-    }
+	if (!cl_weaponWheelActive->integer)
+	{
 
-    cmd->upmove = ClampChar( cmd->upmove + (int)up );
+		if (!kb[KB_STRAFE].active)
+		{
+			cl.viewangles[YAW] += anglespeed * (yaw * cl.cgameSensitivity);
+			cmd->rightmove = ClampChar(cmd->rightmove + (int)right);
+		}
+		else
+		{
+			cl.viewangles[YAW] += anglespeed * (right * cl.cgameSensitivity);
+			cmd->rightmove = ClampChar(cmd->rightmove + (int)yaw);
+		}
+
+		if (kb[KB_MLOOK].active)
+		{
+			cl.viewangles[PITCH] += anglespeed * (forward * cl.cgameSensitivity);
+			cmd->forwardmove = ClampChar(cmd->forwardmove + (int)pitch);
+		}
+		else
+		{
+			cl.viewangles[PITCH] += anglespeed * (pitch * cl.cgameSensitivity);
+			cmd->forwardmove = ClampChar(cmd->forwardmove + (int)forward);
+		}
+	}
+	else
+	{
+		// still allow movement, but no camera
+		cmd->rightmove = ClampChar(cmd->rightmove + (int)right);
+		cmd->forwardmove = ClampChar(cmd->forwardmove + (int)forward);
+	}
+
+	cmd->upmove = ClampChar( cmd->upmove + (int)up );
     CL_GamepadUIMouseMove();
 }
 
@@ -1058,6 +1105,8 @@ void CL_MouseMove(usercmd_t *cmd) {
 	}
 
 	// add mouse X/Y movement to cmd
+if ( !cl_weaponWheelActive->integer ) {
+
 	if ( kb[KB_STRAFE].active ) {
 		cmd->rightmove = ClampChar( cmd->rightmove + m_side->value * mx );
 	} else {
@@ -1069,6 +1118,9 @@ void CL_MouseMove(usercmd_t *cmd) {
 	} else {
 		cmd->forwardmove = ClampChar( cmd->forwardmove - m_forward->value * my );
 	}
+
+}
+
 }
 
 

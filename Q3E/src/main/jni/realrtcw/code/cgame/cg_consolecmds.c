@@ -124,32 +124,7 @@ extern menuDef_t *menuScoreboard;
 void Menu_Reset( void );          // FIXME: add to right include file
 
 static void CG_LoadHud_f( void ) {
-
-	String_Init();
-	Menu_Reset();
-
-    if (cg_hudStyle.integer == 1) {
-	CG_LoadMenus( "ui/hud/wolf09.txt");
-	} else if (cg_hudStyle.integer == 2) {
-	CG_LoadMenus( "ui/hud/ps2.txt");
-	} else if (cg_hudStyle.integer == 3) {
-	CG_LoadMenus( "ui/hud/xbox.txt");
-	} else if (cg_hudStyle.integer == 4) {
-	CG_LoadMenus( "ui/hud/et.txt");
-	} else if (cg_hudStyle.integer == 5) {
-	CG_LoadMenus( "ui/hud/vanilla.txt");
-	} else if (cg_hudStyle.integer == 6) {
-	CG_LoadMenus( "ui/hud/custom_hud1.txt");
-	} else if (cg_hudStyle.integer == 7) {
-	CG_LoadMenus( "ui/hud/custom_hud2.txt");
-	} else if (cg_hudStyle.integer == 8) {
-	CG_LoadMenus( "ui/hud/custom_hud3.txt");
-	} else if (cg_hudStyle.integer == 9) {
-	CG_LoadMenus( "ui/hud/custom_hud4.txt");
-	} else if (cg_hudStyle.integer == 10) {
-	CG_LoadMenus( "ui/hud/custom_hud5.txt");
-	}
-
+	CG_LoadHudMenu();
 	menuScoreboard = NULL;
 }
 
@@ -207,6 +182,81 @@ static void CG_InventoryUp_f( void ) {
 }
 
 //----(SA)	end
+
+static void CG_WeaponWheelDown_f( void ) {
+
+	if (cg.snap->ps.eFlags & EF_MG42_ACTIVE)
+	{
+		return;
+	}
+
+	if (cg.snap->ps.eFlags & EF_DEAD)
+	{
+		return;
+	}
+
+	if ( cg.zoomedScope ) {
+		return;
+	}
+
+	if ( cg.zoomedBinoc ) {
+		return;
+	}
+
+	// don't let a buffered/mashed keypress open the wheel during a cutscene or at intermission
+	if ( cg.snap->ps.pm_type == PM_FREEZE || cg.snap->ps.pm_type == PM_INTERMISSION ) {
+		return;
+	}
+
+	// don't open the wheel (and its slowmo/vignette side effects) if there's nothing to select
+	{
+		int visibleWeapons[MAX_WEAPONS];
+		if ( CG_CollectWeaponWheelWeapons( visibleWeapons, MAX_WEAPONS ) <= 0 ) {
+			return;
+		}
+	}
+
+	cg.weaponWheel.openTime = cg.time;
+
+	cgs.cursorX = SCREEN_WIDTH * 0.35f;
+	cgs.cursorY = SCREEN_HEIGHT * 0.5f;
+
+	cg.weaponWheel.stickX = 0.0f;
+	cg.weaponWheel.stickY = 0.0f;
+
+	cg.weaponWheel.active = qtrue;
+	trap_Cvar_Set( "cg_weaponWheelActive", "1" );
+
+	cg.weaponWheel.hoveredBank = 0;
+	cg.weaponWheel.hoveredWeapon = 0;
+	cg.weaponWheel.latchedWeapon = 0;
+	cg.weaponWheel.lastWeapon = 0;
+
+	trap_SendClientCommand( "wwheel 1" );
+}
+
+static void CG_WeaponWheelUp_f( void ) {
+	if ( !cg.weaponWheel.active ) {
+		return;
+	}
+
+	cg.weaponWheel.stickX = 0.0f;
+	cg.weaponWheel.stickY = 0.0f;
+
+	cg.weaponWheel.active = qfalse;
+	trap_Cvar_Set( "cg_weaponWheelActive", "0" );
+
+	trap_SendClientCommand( "wwheel 0" );
+
+	int weapon = cg.weaponWheel.latchedWeapon > 0
+					 ? cg.weaponWheel.latchedWeapon
+					 : cg.weaponWheel.hoveredWeapon;
+
+	if (weapon > 0)
+	{
+		CG_FinishWeaponChange(cg.weaponSelect, weapon);
+	}
+}
 
 static void CG_TellTarget_f( void ) {
 	int clientNum;
@@ -554,59 +604,224 @@ static void CG_LimboMessage_f( void ) {
 }
 // -NERVE - SMF
 
+/*
+===================
+CG_DumpSound_f
+
+Places a new script speaker at the player's current origin, appends it to
+sound/maps/<mapname>.sps, and starts it playing immediately in this session.
+
+Usage: dumpsound <soundfile> [wait=N] [random=N] [volume=N] [range=N]
+                  [looped=no|on|off] [broadcast=no|global|nopvs] [targetname=name]
+===================
+*/
+static void CG_DumpSound_f( void ) {
+	scriptSpeaker_t speaker;
+	int             argc;
+	int             i;
+	char            arg[MAX_QPATH];
+	char            *value;
+
+	argc = trap_Argc();
+
+	if ( argc < 2 ) {
+		CG_Printf( "Usage: dumpsound <soundfile> [wait=N] [random=N] [volume=N] [range=N] [looped=no|on|off] [broadcast=no|global|nopvs] [targetname=name]\n" );
+		return;
+	}
+
+	Com_Memset( &speaker, 0, sizeof( speaker ) );
+	speaker.volume = 127;
+	speaker.range  = 1250;
+	VectorCopy( cg.snap->ps.origin, speaker.origin );
+
+	Q_strncpyz( speaker.filename, CG_Argv( 1 ), sizeof( speaker.filename ) );
+
+	for ( i = 2; i < argc; i++ ) {
+		trap_Argv( i, arg, sizeof( arg ) );
+
+		value = strchr( arg, '=' );
+		if ( !value ) {
+			CG_Printf( S_COLOR_YELLOW "WARNING: dumpsound ignoring malformed argument '%s' (expected key=value)\n", arg );
+			continue;
+		}
+		*value++ = '\0';
+
+		if ( !Q_stricmp( arg, "wait" ) ) {
+			speaker.wait = atoi( value );
+		} else if ( !Q_stricmp( arg, "random" ) ) {
+			speaker.random = atoi( value );
+		} else if ( !Q_stricmp( arg, "volume" ) ) {
+			speaker.volume = atoi( value );
+		} else if ( !Q_stricmp( arg, "range" ) ) {
+			speaker.range = atoi( value );
+		} else if ( !Q_stricmp( arg, "targetname" ) ) {
+			Q_strncpyz( speaker.targetname, value, sizeof( speaker.targetname ) );
+		} else if ( !Q_stricmp( arg, "looped" ) ) {
+			if ( !Q_stricmp( value, "on" ) ) {
+				speaker.loop      = SPKR_LOOPED_ON;
+				speaker.activated = qtrue;
+			} else if ( !Q_stricmp( value, "off" ) ) {
+				speaker.loop = SPKR_LOOPED_OFF;
+			} else if ( !Q_stricmp( value, "no" ) ) {
+				speaker.loop = SPKR_NOT_LOOPED;
+			} else {
+				CG_Printf( S_COLOR_YELLOW "WARNING: dumpsound unknown looped value '%s' (expected no|on|off)\n", value );
+			}
+		} else if ( !Q_stricmp( arg, "broadcast" ) ) {
+			if ( !Q_stricmp( value, "global" ) ) {
+				speaker.broadcast = SPKR_GLOBAL;
+			} else if ( !Q_stricmp( value, "nopvs" ) ) {
+				speaker.broadcast = SPKR_NOPVS;
+			} else if ( !Q_stricmp( value, "no" ) ) {
+				speaker.broadcast = SPKR_LOCAL;
+			} else {
+				CG_Printf( S_COLOR_YELLOW "WARNING: dumpsound unknown broadcast value '%s' (expected no|global|nopvs)\n", value );
+			}
+		} else {
+			CG_Printf( S_COLOR_YELLOW "WARNING: dumpsound ignoring unknown argument '%s'\n", arg );
+		}
+	}
+
+	if ( speaker.volume < 0 ) {
+		speaker.volume = 0;
+	} else if ( speaker.volume > 255 ) {
+		speaker.volume = 255;
+	}
+	if ( speaker.range < 0 ) {
+		speaker.range = 0;
+	}
+	if ( speaker.wait < 0 ) {
+		speaker.wait = 0;
+	}
+	if ( speaker.random < 0 ) {
+		speaker.random = 0;
+	}
+
+	if ( !CG_AddScriptSpeaker( &speaker ) ) {
+		return;
+	}
+
+	CG_SaveSpeakerScript();
+
+	CG_Printf( "Placed speaker #%i '%s' at %.0f %.0f %.0f\n",
+			   numScriptSpeakers - 1, speaker.filename,
+			   (double) speaker.origin[0], (double) speaker.origin[1], (double) speaker.origin[2] );
+}
+
+/*
+===================
+CG_ListSounds_f
+
+Lists all script speakers currently loaded for this map.
+===================
+*/
+static void CG_ListSounds_f( void ) {
+	static const char *loopedStr[]    = { "no", "on", "off" };
+	static const char *broadcastStr[] = { "no", "global", "nopvs" };
+	int             i;
+	scriptSpeaker_t *speaker;
+
+	if ( !numScriptSpeakers ) {
+		CG_Printf( "No script speakers loaded for this map.\n" );
+		return;
+	}
+
+	for ( i = 0; i < numScriptSpeakers; i++ ) {
+		speaker = &scriptSpeakers[i];
+
+		CG_Printf( "#%i: '%s' at %.0f %.0f %.0f  looped=%s broadcast=%s wait=%i random=%i volume=%i range=%i%s%s\n",
+				   i, speaker->filename,
+				   (double) speaker->origin[0], (double) speaker->origin[1], (double) speaker->origin[2],
+				   loopedStr[speaker->loop], broadcastStr[speaker->broadcast],
+				   speaker->wait, speaker->random, speaker->volume, speaker->range,
+				   *speaker->targetname ? " targetname=" : "", speaker->targetname );
+	}
+}
+
+/*
+===================
+CG_DeleteSound_f
+
+Removes a script speaker by index (see listsounds) and re-saves the .sps file.
+===================
+*/
+static void CG_DeleteSound_f( void ) {
+	int index;
+
+	if ( trap_Argc() != 2 ) {
+		CG_Printf( "Usage: deletesound <index>  (see listsounds)\n" );
+		return;
+	}
+
+	index = atoi( CG_Argv( 1 ) );
+
+	if ( !CG_DeleteScriptSpeaker( index ) ) {
+		CG_Printf( S_COLOR_RED "ERROR: no script speaker #%i\n", index );
+		return;
+	}
+
+	CG_SaveSpeakerScript();
+
+	CG_Printf( "Deleted speaker #%i\n", index );
+}
+
 typedef struct {
 	char    *cmd;
 	void ( *function )( void );
 } consoleCommand_t;
 
 static consoleCommand_t commands[] = {
-	{ "testgun", CG_TestGun_f },
-	{ "testmodel", CG_TestModel_f },
-	{ "nextframe", CG_TestModelNextFrame_f },
-	{ "prevframe", CG_TestModelPrevFrame_f },
-	{ "nextskin", CG_TestModelNextSkin_f },
-	{ "prevskin", CG_TestModelPrevSkin_f },
-	{ "viewpos", CG_Viewpos_f },
-	{ "+scores", CG_ScoresDown_f },
-	{ "-scores", CG_ScoresUp_f },
-	{ "+inventory", CG_InventoryDown_f },
-	{ "-inventory", CG_InventoryUp_f },
-//	{ "+zoom", CG_ZoomDown_f },		// (SA) zoom moved to a wbutton so server can determine weapon firing based on zoom status
-//	{ "-zoom", CG_ZoomUp_f },
-	{ "zoomin", CG_ZoomIn_f },
-	{ "zoomout", CG_ZoomOut_f },
-	{ "sizeup", CG_SizeUp_f },
-	{ "sizedown", CG_SizeDown_f },
-	{ "weaplastused", CG_LastWeaponUsed_f },
-	{ "weapnextinbank", CG_NextWeaponInBank_f },
-	{ "weapprevinbank", CG_PrevWeaponInBank_f },
-	{ "weapnext", CG_NextWeapon_f },
-	{ "weapprev", CG_PrevWeapon_f },
-	{ "weapalt", CG_AltWeapon_f },
-	{ "weapon", CG_Weapon_f },
-	{ "weaponbank", CG_WeaponBank_f },
-	{ "itemnext", CG_NextItem_f },
-	{ "itemprev", CG_PrevItem_f },
-	{ "item", CG_Item_f },
-	{ "tell_target", CG_TellTarget_f },
-	{ "tell_attacker", CG_TellAttacker_f },
-	{ "tcmd", CG_TargetCommand_f },
-	{ "loadhud", CG_LoadHud_f },
-	{ "loaddeferred", CG_LoadDeferredPlayers },  // spelling fixed (SA)
-	{ "camera", CG_Camera_f },   // duffy
-	{ "fade", CG_Fade_f },   // duffy
-	{ "loadweapons", CG_LoadWeapons_f },
+	{"testgun", CG_TestGun_f},
+	{"testmodel", CG_TestModel_f},
+	{"nextframe", CG_TestModelNextFrame_f},
+	{"prevframe", CG_TestModelPrevFrame_f},
+	{"nextskin", CG_TestModelNextSkin_f},
+	{"prevskin", CG_TestModelPrevSkin_f},
+	{"viewpos", CG_Viewpos_f},
+	{"+scores", CG_ScoresDown_f},
+	{"-scores", CG_ScoresUp_f},
+	{"+inventory", CG_InventoryDown_f},
+	{"-inventory", CG_InventoryUp_f},
+	//	{ "+zoom", CG_ZoomDown_f },		// (SA) zoom moved to a wbutton so server can determine weapon firing based on zoom status
+	//	{ "-zoom", CG_ZoomUp_f },
+	{"zoomin", CG_ZoomIn_f},
+	{"zoomout", CG_ZoomOut_f},
+	{"sizeup", CG_SizeUp_f},
+	{"sizedown", CG_SizeDown_f},
+	{"weaplastused", CG_LastWeaponUsed_f},
+	{"weapnextinbank", CG_NextWeaponInBank_f},
+	{"weapprevinbank", CG_PrevWeaponInBank_f},
+	{"weapnext", CG_NextWeapon_f},
+	{"weapprev", CG_PrevWeapon_f},
+	{"weapalt", CG_AltWeapon_f},
+	{"weapon", CG_Weapon_f},
+	{"weaponbank", CG_WeaponBank_f},
+	{"itemnext", CG_NextItem_f},
+	{"itemprev", CG_PrevItem_f},
+	{"item", CG_Item_f},
+	{"tell_target", CG_TellTarget_f},
+	{"tell_attacker", CG_TellAttacker_f},
+	{"tcmd", CG_TargetCommand_f},
+	{"loadhud", CG_LoadHud_f},
+	{"loaddeferred", CG_LoadDeferredPlayers}, // spelling fixed (SA)
+	{"camera", CG_Camera_f},				  // duffy
+	{"fade", CG_Fade_f},					  // duffy
+	{"loadweapons", CG_LoadWeapons_f},
 
 	// NERVE - SMF
-	{ "mp_QuickMessage", CG_QuickMessage_f },
-	{ "OpenLimboMenu", CG_OpenLimbo_f },
-	{ "CloseLimboMenu", CG_CloseLimbo_f },
-	{ "LimboMessage", CG_LimboMessage_f },
+	{"mp_QuickMessage", CG_QuickMessage_f},
+	{"OpenLimboMenu", CG_OpenLimbo_f},
+	{"CloseLimboMenu", CG_CloseLimbo_f},
+	{"LimboMessage", CG_LimboMessage_f},
 	// -NERVE - SMF
-	{ "dumploc", CG_DumpLocation_f },
-	{ "dumpcastai", CG_DumpCastAi_f }
+	{"dumploc", CG_DumpLocation_f},
+	{"dumpcastai", CG_DumpCastAi_f},
+	{"dumpsound", CG_DumpSound_f},
+	{"listsounds", CG_ListSounds_f},
+	{"deletesound", CG_DeleteSound_f},
+	{"+weaponwheel", CG_WeaponWheelDown_f},
+	{"-weaponwheel", CG_WeaponWheelUp_f}
 };
-
 
 /*
 =================

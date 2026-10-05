@@ -548,6 +548,8 @@ typedef struct {
 	qboolean teamInfo;              // send team overlay updates?
 
 	int resetStatsConfirmTime;
+
+	qboolean weaponWheelOpen;       // client has told us its weapon wheel UI is open (SP world-slowdown trigger)
 } clientPersistant_t;
 
 
@@ -741,6 +743,7 @@ typedef struct {
 	char        *scriptAI;
 	int reloadPauseTime;                // don't think AI/client's until this time has elapsed
 	int reloadDelayTime;                // don't start loading the savegame until this has expired
+	qboolean pendingCheckpointSave;     // checkpoint save deferred until the player's script runs this frame
 
 	int lastGrenadeKick;
 
@@ -783,6 +786,12 @@ typedef struct {
 
 	// fretn - maybe not the best place to add this
 	char *maplist[MAX_MAPS];
+
+	qboolean pendingFSGameChange;
+	char nextFSGame[MAX_QPATH];
+
+	float timeDilation;             // current eased world time dilation factor (1.0 = normal)
+	float timeDilationTarget;       // target factor we're easing toward
 
 } level_locals_t;
 
@@ -1034,8 +1043,6 @@ void SendScoreboardMessageToAllClients( void );
 void QDECL G_Printf( const char *fmt, ... ) __attribute__ ((format (printf, 1, 2)));
 void QDECL G_DPrintf( const char *fmt, ... ) __attribute__ ((format (printf, 1, 2)));
 void QDECL G_Error( const char *fmt, ... ) __attribute__ ((noreturn, format (printf, 1, 2)));
-//----(SA)	added
-void G_EndGame( void );
 int G_SendMissionStats( void );   // return '0' if objectives not met, '1' if met
 void G_ChangeLevel( char *mapName );
 //----(SA)	end
@@ -1172,9 +1179,23 @@ extern vmCvar_t g_dlc1;
 extern vmCvar_t g_class;
 extern vmCvar_t g_noobTube;
 extern vmCvar_t g_aiCollision;    
-extern vmCvar_t g_level_was_selected;  
+extern vmCvar_t g_level_was_selected;
+extern vmCvar_t g_survivalDifficulty;
+extern vmCvar_t g_survivalBosses;
+
+extern vmCvar_t g_weaponWheelDilation;
+extern vmCvar_t g_weaponWheelDilationRamp;
 
 extern vmCvar_t g_playerSurvivalClass;
+
+extern vmCvar_t g_ee_skinEliteGuard;
+extern vmCvar_t g_ee_skinMercenary;
+extern vmCvar_t g_ee_skinZombie;
+
+extern vmCvar_t g_ee_earlyWeapons;
+extern vmCvar_t g_ee_endgameSwitch;
+extern vmCvar_t g_ee_progress;
+extern vmCvar_t g_ee_svAgent1;
 
 extern vmCvar_t g_reloading;        //----(SA)	added
 
@@ -1254,6 +1275,8 @@ extern vmCvar_t g_cvopsChargeTime;
 // jpw
 
 extern vmCvar_t g_playerStart;      //----(SA)	added
+extern vmCvar_t g_checkpointReady;
+extern vmCvar_t g_levelSelectPending;
 
 extern vmCvar_t g_localTeamPref;
 
@@ -1268,13 +1291,11 @@ extern vmCvar_t g_spawnxshepherds;
 extern vmCvar_t g_aicanheadshot;
 extern vmCvar_t g_realism;
 extern vmCvar_t g_regen;
+extern vmCvar_t g_overheal;
 extern vmCvar_t	g_flushItems;
 extern vmCvar_t g_vanilla_guns;
 extern vmCvar_t g_specialWaves;
 extern vmCvar_t g_survivalAiHealthCap;
-
-// Safe endgame fix
-extern qboolean g_endgameTriggered;
 
 void	trap_Print( const char *text );
 void	trap_Error( const char *text ) __attribute__((noreturn));
@@ -1510,3 +1531,5 @@ typedef enum
 	shard_ceramic,
 	shard_rubble
 } shards_t;
+
+void G_ScheduleEndgame( int delay );

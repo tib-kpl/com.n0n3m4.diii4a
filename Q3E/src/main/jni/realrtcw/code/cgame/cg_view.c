@@ -799,6 +799,8 @@ void CG_Zoom( void ) {
 
 float CG_ApplySimpleZoomFov( float currentFovX ) {
 	float baseFovX, targetFovX, f, out;
+	qboolean zoomed;
+	qboolean following = (qboolean)( cg.snap && ( cg.snap->ps.pm_flags & PMF_FOLLOW ) );
 
 	// feature disabled / not set up
 	if ( cg_simpleZoomFov.value <= 0 ) {
@@ -810,13 +812,34 @@ float CG_ApplySimpleZoomFov( float currentFovX ) {
 		return currentFovX;
 	}
 
-	// Optional: don't allow while using heavy weapon
+	if ( cg.predictedPlayerState.eFlags & EF_DEAD  ) {
+		return currentFovX;
+	}
+
+	// don't allow while using heavy weapon
 	if ( cg.snap && cg.snap->ps.persistant[PERS_HWEAPON_USE] ) {
 		return currentFovX;
 	}
 
+	if ( following ) {
+		// mirror the followed player's networked zoom state instead of our own (disabled) toggle
+		zoomed = (qboolean)cg.predictedPlayerState.simpleZoomed;
+		if ( zoomed != cg.simpleZoomedFollow ) {
+			cg.simpleZoomedFollow = zoomed;
+			cg.simpleZoomTime = cg.time;
+		}
+	} else {
+		zoomed = cg.simpleZoomed;
+		cg.simpleZoomedFollow = qfalse;
+	}
+
 	baseFovX = currentFovX;
-	targetFovX = cg.simpleZoomed ? cg_simpleZoomFov.value : baseFovX;
+	targetFovX = zoomed ? cg_simpleZoomFov.value : baseFovX;
+
+	// WP_VENOM: spread is too wide for zoom to meaningfully help, so soften the zoom-in
+	if ( zoomed && cg.predictedPlayerState.weapon == WP_VENOM ) {
+		targetFovX = baseFovX + ( targetFovX - baseFovX ) * cg_simpleZoomVenomScale.value;
+	}
 
 	// clamp target
 	if ( targetFovX < 1 ) targetFovX = 1;
@@ -836,7 +859,7 @@ float CG_ApplySimpleZoomFov( float currentFovX ) {
 		if ( f > 1.0f ) f = 1.0f;
 	}
 
-	if ( cg.simpleZoomed ) {
+	if ( zoomed ) {
 		// zooming in: base -> target
 		out = baseFovX + f * ( targetFovX - baseFovX );
 	} else {
@@ -858,6 +881,15 @@ float CG_FovTanScale( float fovDeg, float baseFovDeg ) {
     float b = CG_FovToTan( baseFovDeg );
     if ( b < 0.0001f ) return 1.0f;
     return CG_FovToTan( fovDeg ) / b;
+}
+
+float CG_CalcWiderFOV(float fov) {
+	// Based on LordHavoc's code for Darkplaces
+	// http://www.quakeworld.nu/forum/topic/53/what-does-your-qw-look-like/page/30
+	const float baseAspect = 0.75f; // 3/4
+	const float aspect = (float)cg.refdef.width/(float)cg.refdef.height;
+
+	return atan2( tan( fov*M_PI / 360.0f ) * baseAspect*aspect, 1 )*360.0f / M_PI;
 }
 
 
@@ -958,20 +990,35 @@ static int CG_CalcFov( void ) {
 
 	// Simple (CS-style) zoom: client-only FOV tweak, no scope overlay
 	fov_x = CG_ApplySimpleZoomFov(fov_x);
+	float baseFovX = cg.fov;
 
 	if ( cg_fixedAspect.integer ) {
-		// Based on LordHavoc's code for Darkplaces
-		// http://www.quakeworld.nu/forum/topic/53/what-does-your-qw-look-like/page/30
-		const float baseAspect = 0.75f; // 3/4
-		const float aspect = (float)cg.refdef.width/(float)cg.refdef.height;
-		const float desiredFov = fov_x;
-
-		fov_x = atan2( tan( desiredFov*M_PI / 360.0f ) * baseAspect*aspect, 1 )*360.0f / M_PI;
+		fov_x = CG_CalcWiderFOV(fov_x);
+		baseFovX = CG_CalcWiderFOV(baseFovX);
 	}
 
 	x = cg.refdef.width / tan( fov_x / 360 * M_PI );
 	fov_y = atan2( cg.refdef.height, x );
 	fov_y = fov_y * 360 / M_PI;
+
+	// set it
+	cg.refdef.fov_x = fov_x;
+	cg.refdef.fov_y = fov_y;
+
+	float baseFovY;
+	float xbase;
+
+	// Convert base horizontal fov to base vertical fov using current refdef size
+	// (mirrors the same math used above for fov_y)
+	xbase = cg.refdef.width / tan(baseFovX / 360.0f * M_PI);
+	baseFovY = (atan2(cg.refdef.height, xbase) * 360.0f) / M_PI;
+
+	// Scale based on actual final vertical fov vs base vertical fov
+	cg.zoomSensitivity = CG_FovTanScale(cg.refdef.fov_y, baseFovY);
+
+	// Detect "zoomed state" by FOV actually being smaller than base
+	// (covers scoped zoom, simple zoom, mg42, any other future fov tweak)
+	cg.isZoomed = cg.refdef.fov_y < baseFovY - 0.01f;
 
 	// warp if underwater
 	contents = CG_PointContents( cg.refdef.vieworg, -1 );
@@ -992,31 +1039,6 @@ static int CG_CalcFov( void ) {
 		cg.refdef.rdflags |= RDF_UNDERWATER;
 	} else {
 		cg.refdef.rdflags &= ~RDF_UNDERWATER;
-	}
-
-	// set it
-	cg.refdef.fov_x = fov_x;
-	cg.refdef.fov_y = fov_y;
-
-	// RealRTCW - sensitivity scaling by fov
-	{
-		// Base FOV is the user's normal FOV (before any zoom/mg42/simple zoom)
-		// cg.fov is set earlier to that base horizontal fov.
-		float baseFovX = cg.fov;
-		float baseFovY;
-		float xbase;
-
-		// Convert base horizontal fov to base vertical fov using current refdef size
-		// (mirrors the same math used above for fov_y)
-		xbase = cg.refdef.width / tan(baseFovX / 360.0f * M_PI);
-		baseFovY = atan2(cg.refdef.height, xbase) * 360.0f / M_PI;
-
-		// Scale based on actual final vertical fov vs base vertical fov
-		cg.zoomSensitivity = CG_FovTanScale(cg.refdef.fov_y, baseFovY);
-
-		// Detect "zoomed state" by FOV actually being smaller than base
-		// (covers scoped zoom, simple zoom, mg42, any other future fov tweak)
-		cg.isZoomed = cg.refdef.fov_y < baseFovY - 0.01f;
 	}
 
 	return inwater;
@@ -1470,6 +1492,8 @@ void CG_DrawSkyBoxPortal( void ) {
 			fov_x = 55;
 		}
 
+		fov_x = CG_ApplySimpleZoomFov(fov_x);
+
 		if ( cg_fixedAspect.integer ) {
 			// Based on LordHavoc's code for Darkplaces
 			// http://www.quakeworld.nu/forum/topic/53/what-does-your-qw-look-like/page/30
@@ -1685,6 +1709,8 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 		DEBUGTIME
 
 		CG_AddAtmosphericEffects(); // RealRTCW
+
+		CG_AddScriptSpeakers();
 
 		DEBUGTIME
 

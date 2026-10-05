@@ -1169,7 +1169,7 @@ void Sys_StartProcess( char *cmdline, qboolean doexit ) {
 Sys_OpenURL
 =================
 */
-void Sys_OpenURL( char *url, qboolean doexit ) {
+void Sys_OpenURL( const char *url, qboolean doexit ) {
 #ifdef __ANDROID__ //karin: open system browser
 	extern void Android_OpenURL(const char *url);
 	Android_OpenURL(url);

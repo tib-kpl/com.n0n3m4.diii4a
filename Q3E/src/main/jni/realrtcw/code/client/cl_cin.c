@@ -95,6 +95,23 @@ static long long FFMPEG_Seek( void *opaque, long long offset, int whence );
 static int FFMPEG_ReadFrame( qboolean onlyAudio );
 static int FFMPEG_DecodeVideo( );
 
+#define MAX_SUBTITLES       256
+#define MAX_SUBTITLE_CHARS  1024
+#define MAX_BUFFER          32000
+
+typedef struct {
+    int startTime, endTime;	// ms
+	char lineText[MAX_SUBTITLE_CHARS];
+	float sizeScale;
+    int x0, y0;
+	int width;	// max width per line
+	int x1, y1;
+} subtitle_t;
+
+static int CIN_GetCurrentPlayingTime( int handle );
+static void CIN_LoadCinematicSubtitle( int handle );
+static void CIN_DrawCinematicSubtitle( int handle );
+
 /******************************************************************************
 *
 * Class:		trFMV
@@ -173,13 +190,15 @@ typedef struct {
 	long roqFPS;
 	int playonwalls;
 	byte*               buf;
+	byte*               rgbaBuf;
+	int rgbaBufSize;
 	long drawX, drawY;
 
 #if !defined(NO_FFMPEG)
 	// ffmpeg
 	AVFormatContext *formatCtx;
 	AVPacket *packet;
-	AVCodec *vCodec;
+	const AVCodec *vCodec;
 	AVCodecContext *vCodecCtx;
 	AVFrame *vFrame, *vRgbaFrame;
 	struct SwsContext *swsCtx;
@@ -191,7 +210,7 @@ typedef struct {
 	int videoStream;
 	int audioStream;
 
-	AVCodec *aCodec;
+    const AVCodec *aCodec;
 	AVCodecContext *aCodecCtx;
 	AVFrame *aFrame;
 	SwrContext *swrCtx;
@@ -202,6 +221,10 @@ typedef struct {
 	int sar_num;
 	int sar_den;
 #endif
+
+	// subtitle
+	int subtitleCount;
+	subtitle_t subtitles[MAX_SUBTITLES];
 } cin_cache;
 
 static cinematics_t cin;
@@ -1589,6 +1612,13 @@ static int FFMPEG_DecodeVideo( ) {
     if ( ret == 0 ) {
         // convert
         if ( !cinTable[currentHandle].swsCtx ) {
+            // dynamic context: reads colorspace/range/primaries from the AVFrames themselves
+#if LIBSWSCALE_VERSION_MAJOR >= 9
+            cinTable[currentHandle].swsCtx = sws_alloc_context();
+            cinTable[currentHandle].swsCtx->flags = SWS_BICUBIC | SWS_ACCURATE_RND;
+            cinTable[currentHandle].swsCtx->dither = SWS_DITHER_ED;
+#else
+            // port: FFmpeg before 8 has no dynamic contexts: one for the frame's size and format (as 5.4)
             cinTable[currentHandle].swsCtx = sws_getContext(
                 cinTable[currentHandle].vFrame->width,
                 cinTable[currentHandle].vFrame->height,
@@ -1599,8 +1629,25 @@ static int FFMPEG_DecodeVideo( ) {
                 SWS_BICUBIC | SWS_ACCURATE_RND,
                 NULL, NULL, NULL
             );
+#endif
         }
+#if LIBSWSCALE_VERSION_MAJOR < 9
+        // ... and the destination frame made beforehand, at the same size
+        if ( !cinTable[currentHandle].vRgbaFrame->buf[0] ) {
+            cinTable[currentHandle].vRgbaFrame->format = AV_PIX_FMT_RGBA;
+            cinTable[currentHandle].vRgbaFrame->width = cinTable[currentHandle].vFrame->width;
+            cinTable[currentHandle].vRgbaFrame->height = cinTable[currentHandle].vFrame->height;
+            av_frame_get_buffer( cinTable[currentHandle].vRgbaFrame, 0 );
+        }
+#endif
 
+#if LIBSWSCALE_VERSION_MAJOR >= 9
+        sws_scale_frame(
+            cinTable[currentHandle].swsCtx,
+            cinTable[currentHandle].vRgbaFrame,
+            cinTable[currentHandle].vFrame
+        );
+#else
         sws_scale(
             cinTable[currentHandle].swsCtx,
             ( const byte * const * )cinTable[currentHandle].vFrame->data,
@@ -1610,8 +1657,34 @@ static int FFMPEG_DecodeVideo( ) {
             cinTable[currentHandle].vRgbaFrame->data,
             cinTable[currentHandle].vRgbaFrame->linesize
         );
+#endif
 
-		cinTable[currentHandle].buf = cinTable[currentHandle].vRgbaFrame->data[0];
+        // copy into our own buffer: vRgbaFrame->data[0] can be freed/reallocated by a later sws_scale_frame call before we upload it
+        {
+            int frameW = cinTable[currentHandle].vFrame->width;
+            int frameH = cinTable[currentHandle].vFrame->height;
+            int srcStride = cinTable[currentHandle].vRgbaFrame->linesize[0];
+            byte *src = cinTable[currentHandle].vRgbaFrame->data[0];
+            int rowBytes = frameW * 4;
+            int neededSize = rowBytes * frameH;
+            int y;
+
+            if ( cinTable[currentHandle].rgbaBufSize < neededSize ) {
+                if ( cinTable[currentHandle].rgbaBuf ) {
+                    Z_Free( cinTable[currentHandle].rgbaBuf );
+                }
+                cinTable[currentHandle].rgbaBuf = Z_Malloc( neededSize );
+                cinTable[currentHandle].rgbaBufSize = neededSize;
+            }
+
+            for ( y = 0; y < frameH; y++ ) {
+                memcpy( cinTable[currentHandle].rgbaBuf + y * rowBytes, src + y * srcStride, rowBytes );
+            }
+        }
+
+		cinTable[currentHandle].buf = cinTable[currentHandle].rgbaBuf;
+        cinTable[currentHandle].drawX = cinTable[currentHandle].CIN_WIDTH  = cinTable[currentHandle].vFrame->width;
+        cinTable[currentHandle].drawY = cinTable[currentHandle].CIN_HEIGHT = cinTable[currentHandle].vFrame->height;
         cinTable[currentHandle].dirty = qtrue;
         cinTable[currentHandle].numQuads++;
     }
@@ -1677,8 +1750,6 @@ static void FFMPEG_Interrupt( void ) {
 			1.0f,
 			-1);
 	}
-
-	t0 = Sys_Milliseconds( );
 
 	// read frame
 	FFMPEG_ReadFrame( qfalse );
@@ -1844,6 +1915,9 @@ static int FFMPEG_Init( void ) {
 		Com_Error( ERR_FATAL, "avcodec_parameters_to_context failed %i\n", ret );
 		return -1;
 	}
+
+	// default is single-threaded; 0 lets libavcodec use all CPUs
+	cinTable[currentHandle].vCodecCtx->thread_count = 0;
 
 	if ( avcodec_open2( cinTable[currentHandle].vCodecCtx, cinTable[currentHandle].vCodec, NULL ) < 0 ) {
 		Com_Error( ERR_FATAL, "Could not open codec\n" );
@@ -2046,8 +2120,12 @@ static void FFMPEG_Free( void ) {
 	}
 
     if ( cinTable[currentHandle].swsCtx ) {
+#if LIBSWSCALE_VERSION_MAJOR >= 9
+        sws_free_context( &cinTable[currentHandle].swsCtx );
+#else
         sws_freeContext( cinTable[currentHandle].swsCtx );
         cinTable[currentHandle].swsCtx = NULL;
+#endif
     }
 
     if ( cinTable[currentHandle].vRgbaFrame ) {
@@ -2360,6 +2438,9 @@ int CIN_PlayCinematic( const char *arg, int x, int y, int w, int h, int systemBi
 		}
 	}
 
+	// load .sub cine subtitle file
+	CIN_LoadCinematicSubtitle( currentHandle );
+
 	CIN_SetExtents( currentHandle, x, y, w, h );
 	CIN_SetLooping( currentHandle, ( systemBits & CIN_loop ) != 0 );
 
@@ -2558,17 +2639,6 @@ h = cls.glconfig.vidHeight;
 	// Save original destination rect (usually fullscreen or whatever caller set).
 	ox = x; oy = y; ow = w; oh = h;
 
-	// Update source size for FFmpeg video (ROQ already has CIN_WIDTH/HEIGHT set via ROQ_QUAD_INFO).
-#if !defined(NO_FFMPEG)
-#ifdef DL_FFMPEG
-	if(FFMPEG_AVAILABLE())
-#endif
-	if ( !cin.isRoq ) {
-		cinTable[handle].drawX = cinTable[handle].CIN_WIDTH  = cinTable[handle].vFrame->width;
-		cinTable[handle].drawY = cinTable[handle].CIN_HEIGHT = cinTable[handle].vFrame->height;
-	}
-#endif
-
 	// Fit video into destination rect while preserving aspect ratio.
 	{
 		float srcW = (float)cinTable[handle].drawX;
@@ -2648,6 +2718,9 @@ h = cls.glconfig.vidHeight;
 	                   buf, handle, cinTable[handle].dirty );
 
 	cinTable[handle].dirty = qfalse;
+
+	// draw cine subtitles
+	CIN_DrawCinematicSubtitle( handle );
 }
 
 /*
@@ -2836,4 +2909,201 @@ void SCR_DrawLevelCinematic( void ) {
     if ( CL_levelCinHandle >= 0 && CL_levelCinHandle < MAX_VIDEO_HANDLES ) {
         CIN_DrawCinematic( CL_levelCinHandle );
     }
+}
+
+
+/*
+==================
+CIN_GetCurrentPlayingTime
+==================
+*/
+static int CIN_GetCurrentPlayingTime( int handle ) {
+	if ( handle < 0 || handle >= MAX_VIDEO_HANDLES ) {
+		return -1;
+	}
+
+	if ( cinTable[handle].roqFPS <= 0 ) {
+		return -1;
+	}
+
+	return (cinTable[handle].tfps * 1000) / cinTable[handle].roqFPS;
+}
+
+/*
+==================
+CIN_LoadCinematicSubtitle
+
+syntax:
+  <startTime> <endTime> <text> <sizeScale> <x0> <y0> <width> [x1 y1]
+  
+    startTime endTime: millisecond
+    sizeScale: font scale
+    x0, y0, width: set the rectangle size, position adjust from 640x480
+    x1 y1: the end position of the rectangle (Optional parameters, set these if subtitles need move)
+
+	-----------------------------
+	|                           |
+	| x0         x0 + width     |
+	|  \            \           |
+	|  *------------*           |  <- y0
+	|  |    text    |           |
+	|  |    text    |           |
+	|  |    ...     |           |
+	|                           |
+	-----------------------------
+==================
+*/
+static void CIN_LoadCinematicSubtitle( int handle ) {
+	if ( handle < 0 || handle >= MAX_VIDEO_HANDLES || cinTable[handle].status == FMV_EOF ) {
+		return;
+	}
+
+	char name[MAX_OSPATH];
+	char buffer[MAX_BUFFER];
+	char *text;
+	fileHandle_t f;
+	int len, i;
+	char *token;
+
+	// initial clear
+	memset( cinTable[handle].subtitles, 0, sizeof(cinTable[handle].subtitles) );
+
+	// cine subtitle filename
+	Q_strncpyz( name, cinTable[handle].fileName, sizeof(name) );
+	char *dot = strrchr( name, '.' );
+    if ( dot ) {
+        *dot = '\0';
+    }
+	Com_sprintf( name, sizeof(name), "%s.sub", name );
+
+	// read file content
+	len = FS_FOpenFileByMode(name, &f, FS_READ);
+	if (len <= 0) {
+		Com_DPrintf(S_COLOR_YELLOW "cine subtitle file \"%s\" not found or unreadable\n", name);
+		return;
+	}
+	if (len >= MAX_BUFFER) {
+		Com_Printf(S_COLOR_YELLOW "\"%s\" is too big, make it smaller (max = %i bytes)\n", name, MAX_BUFFER);
+	}
+
+	FS_Read(buffer, len, f);
+	buffer[len] = 0;
+	FS_FCloseFile(f);
+
+	// parse the lines
+	text = buffer;
+	token = COM_ParseExt(&text, qtrue);
+	if (token[0] != '{') {
+		Com_Printf("^1WARNING: expecting '{', found '%s' instead in cine subtitle file \"%s\"\n", token, name);
+		return;
+	}
+
+	i = 0;
+	while ( cinTable[handle].subtitleCount < MAX_SUBTITLES) {
+		token = COM_ParseExt(&text, qtrue);
+		if (!token[0]) {
+			Com_Printf("^1WARNING: no concluding '}' in cine subtitle file \"%s\"\n", name);
+			break;
+		}
+		// end of shader definition
+		if (token[0] == '}') {
+			break;
+		}
+
+		cinTable[handle].subtitles[i].startTime = atoi(token);
+
+		token = COM_ParseExt(&text, qfalse);
+		cinTable[handle].subtitles[i].endTime = atoi(token);
+
+		token = COM_ParseExt(&text, qfalse);
+		Q_strncpyz( cinTable[handle].subtitles[i].lineText, token, sizeof(cinTable[handle].subtitles[i].lineText) );
+
+		token = COM_ParseExt(&text, qfalse);
+		cinTable[handle].subtitles[i].sizeScale = (float)atof(token);
+
+		token = COM_ParseExt(&text, qfalse);
+		cinTable[handle].subtitles[i].x0 = atoi(token);
+
+		token = COM_ParseExt(&text, qfalse);
+		cinTable[handle].subtitles[i].y0 = atoi(token);
+
+		token = COM_ParseExt(&text, qfalse);
+		cinTable[handle].subtitles[i].width = atoi(token);
+
+		// optional parameters
+		token = COM_ParseExt(&text, qfalse);
+		if ( !token[0] ) {
+			cinTable[handle].subtitles[i].x1 = cinTable[handle].subtitles[i].x0;
+			cinTable[handle].subtitles[i].y1 = cinTable[handle].subtitles[i].y0;
+		} else {
+			cinTable[handle].subtitles[i].x1 = atoi(token);
+			token = COM_ParseExt(&text, qfalse);
+			cinTable[handle].subtitles[i].y1 = token[0] ? atoi(token) : cinTable[handle].subtitles[i].y0;
+		}
+
+		cinTable[handle].subtitleCount++;
+		i++;
+	}
+
+}
+
+/*
+==================
+CIN_DrawCinematicSubtitle
+==================
+*/
+static void CIN_DrawCinematicSubtitle( int handle ) {
+	qboolean isCinPlaying = (CL_handle >= 0 && CL_handle < MAX_VIDEO_HANDLES) ||
+							(CL_levelCinHandle >= 0 && CL_levelCinHandle < MAX_VIDEO_HANDLES);
+	
+	if ( !isCinPlaying ) {
+		return;
+	}
+	
+	if ( handle < 0 || handle >= MAX_VIDEO_HANDLES || cinTable[handle].status == FMV_EOF ) {
+		return;
+	}
+
+	if ( !cinTable[handle].buf ) {
+		return;
+	}
+
+	if ( !cl_drawCineSubtitles->value ) {
+		return;
+	}
+
+	// 
+	subtitle_t *subs = cinTable[handle].subtitles;
+	float color[4], backColor[4];
+	color[0] = color[1] = color[2] = color[3] = 1.0;
+	backColor[0] = backColor[1] = backColor[2] = 0;
+	backColor[3] = 1.0;
+
+	int time = CIN_GetCurrentPlayingTime(handle);
+	if ( time <= 0 ) return;
+
+	float x, y, t;
+	for ( int i = 0; i < cinTable[handle].subtitleCount; i++ ) {
+		if ( !subs[i].lineText[0] ) {
+			continue;
+		}
+
+		if ( subs[i].startTime < subs[i].endTime && time >= subs[i].startTime && time <= subs[i].endTime) {
+			if ( subs[i].x1 != subs[i].x0 || subs[i].y1 != subs[i].y0 ) {
+				// if a smoother move effect is needed
+				// then CIN_GetCurrentPlayingTime needs to be modified to get a more accurate timestamp
+				t = (float)(time - subs[i].startTime) / (float)(subs[i].endTime - subs[i].startTime);
+				x = (float)subs[i].x0 + (float)(subs[i].x1 - subs[i].x0) * t;
+				y = (float)subs[i].y0 + (float)(subs[i].y1 - subs[i].y0) * t;
+			} else {
+				x = subs[i].x0;
+				y = subs[i].y0;
+			}
+
+			SCR_Text_AutoWrapped_Paint( x, y, subs[i].sizeScale, subs[i].lineText,
+										subs[i].width, color, TEXT_ALIGN_CENTER,
+										cls.subtitleCharSetShader );
+		}
+	}
+
 }

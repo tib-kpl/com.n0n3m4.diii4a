@@ -805,6 +805,16 @@ GLimp_EndFrame
 Responsible for doing a swapbuffers
 ===============
 */
+/*
+===============
+GLimp_IsMinimized (5.44c skips drawing while the window is minimized; the activity pauses the game itself)
+===============
+*/
+qboolean GLimp_IsMinimized( void )
+{
+	return qfalse;
+}
+
 void GLimp_EndFrame( void )
 {
 	// don't flip if drawing to front buffer

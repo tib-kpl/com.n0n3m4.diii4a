@@ -192,6 +192,14 @@ void    trap_S_StartSoundEx( vec3_t origin, int entityNum, int entchannel, sfxHa
 }
 //----(SA)	end
 
+void    trap_S_StartSoundVControl( vec3_t origin, int entityNum, int entchannel, sfxHandle_t sfx, int volume ) {
+	syscall( CG_S_STARTSOUNDVCONTROL, origin, entityNum, entchannel, sfx, volume );
+}
+
+qboolean    trap_R_inPVS( const vec3_t p1, const vec3_t p2 ) {
+	return syscall( CG_R_INPVS, p1, p2 );
+}
+
 void    trap_S_StartLocalSound( sfxHandle_t sfx, int channelNum ) {
 	syscall( CG_S_STARTLOCALSOUND, sfx, channelNum );
 }
@@ -546,4 +554,8 @@ qboolean trap_GetModelInfo( int clientNum, char *modelName, animModelInfo_t **mo
 // New in IORTCW
 void *trap_Alloc( int size ) {
 	return (void*)syscall( CG_ALLOC, size );
+}
+
+qhandle_t trap_R_RegisterSmartSkin( const char *name, const char *mapName, qboolean upgraded ) {
+	return syscall( CG_R_REGISTERSMARTSKIN, name, mapName, upgraded );
 }

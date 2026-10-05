@@ -159,7 +159,7 @@ set(realrtcwcgame_src
         code/cgame/cg_particles.c
         code/cgame/cg_players.c
         code/cgame/cg_playerstate.c
-        code/cgame/cg_polybus.c
+        code/cgame/cg_speakerscript.c
         code/cgame/cg_predict.c
         code/cgame/cg_scoreboard.c
         code/cgame/cg_servercmds.c
@@ -342,6 +342,9 @@ set(realrtcwrenderer_src
         code/renderer/tr_flares.c
         code/renderer/tr_font.c
         code/renderer/tr_image.c
+        code/renderer/tr_arb.c
+        code/renderer/tr_extensions.c
+        code/renderer/tr_fbo.c
         code/renderer/tr_image_bmp.c
         code/renderer/tr_image_jpg.c
         code/renderer/tr_image_pcx.c

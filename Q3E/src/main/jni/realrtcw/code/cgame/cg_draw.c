@@ -281,7 +281,7 @@ static void CG_DrawField( int x, int y, int width, int value ) {
 	if ( l > width ) {
 		l = width;
 	}
-	x += 2 + CHAR_WIDTH * ( width - l );
+	x += 2 + CHAR_WIDTH_CG * ( width - l );
 
 	ptr = num;
 	while ( *ptr && l )
@@ -292,8 +292,8 @@ static void CG_DrawField( int x, int y, int width, int value ) {
 			frame = *ptr - '0';
 		}
 
-		CG_DrawPic( x,y, CHAR_WIDTH, CHAR_HEIGHT, cgs.media.numberShaders[frame] );
-		x += CHAR_WIDTH;
+		CG_DrawPic( x,y, CHAR_WIDTH_CG, CHAR_HEIGHT_CG, cgs.media.numberShaders[frame] );
+		x += CHAR_WIDTH_CG;
 		ptr++;
 		l--;
 	}
@@ -682,15 +682,15 @@ static void CG_DrawStatusBar( void ) {
 
 	
 	if ( cg_drawStatusHead.integer ) {
-		CG_DrawStatusBarHead( 185 + CHAR_WIDTH*3 + TEXT_ICON_SPACE );
+		CG_DrawStatusBarHead( 185 + CHAR_WIDTH_CG*3 + TEXT_ICON_SPACE );
 	}
 
 	CG_DrawStatusBarKeys();
 
 	if ( cg.predictedPlayerState.powerups[PW_REDFLAG] ) {
-		CG_DrawStatusBarFlag( 185 + CHAR_WIDTH * 3 + TEXT_ICON_SPACE + ICON_SIZE, TEAM_RED );
+		CG_DrawStatusBarFlag( 185 + CHAR_WIDTH_CG * 3 + TEXT_ICON_SPACE + ICON_SIZE, TEAM_RED );
 	} else if ( cg.predictedPlayerState.powerups[PW_BLUEFLAG] ) {
-		CG_DrawStatusBarFlag( 185 + CHAR_WIDTH * 3 + TEXT_ICON_SPACE + ICON_SIZE, TEAM_BLUE );
+		CG_DrawStatusBarFlag( 185 + CHAR_WIDTH_CG * 3 + TEXT_ICON_SPACE + ICON_SIZE, TEAM_BLUE );
 	}
 
 	//----(SA) further change... we don't need to draw the armor do we?
@@ -810,7 +810,7 @@ static void CG_DrawStatusBar( void ) {
 
 				icon = cg_weapons[ cg.predictedPlayerState.weapon ].ammoIcon;
 				if ( icon ) {
-					CG_DrawPic( CHAR_WIDTH * 3 + TEXT_ICON_SPACE, STATUSBARHEIGHT, ICON_SIZE, ICON_SIZE, icon );
+					CG_DrawPic( CHAR_WIDTH_CG * 3 + TEXT_ICON_SPACE, STATUSBARHEIGHT, ICON_SIZE, ICON_SIZE, icon );
 				}
 			}
 			
@@ -1114,7 +1114,7 @@ static void CG_DrawScriptLabel() {
 		}
 	}
 	else {
-		s1 = va("");
+		s1 = "";
 	}
 	w1 = CG_DrawStrlen(s1) * BIGCHAR_WIDTH;
 
@@ -1122,7 +1122,7 @@ static void CG_DrawScriptLabel() {
 		s2 = va("%s", lbl->label);
 	}
 	else {
-		s2 = va("");
+		s2 = "";
 	}
 	w2 = CG_DrawStrlen(s2) * BIGCHAR_WIDTH;
 
@@ -1237,7 +1237,7 @@ static float CG_DrawPowerups( float y ) {
 	}
 
 	// draw the icons and timers
-	x = 640 - ICON_SIZE - CHAR_WIDTH * 2;
+	x = 640 - ICON_SIZE - CHAR_WIDTH_CG * 2;
 	for ( i = 0 ; i < active ; i++ ) {
 
 //		continue;   // (SA) FIXME: TEMP: as I'm getting powerup business going
@@ -1759,7 +1759,8 @@ for a few moments
 ==============
 */
 void CG_BuyPrint( const char *str, int y, int charWidth ) {
-	char   *s, *p, *c = cg.buyPrint;
+	const char *s, *p;
+	char *c = cg.buyPrint;
 	char   token[64];
 	const char *trToken;
 	int    lenTrToken;
@@ -3623,9 +3624,42 @@ static void CG_DrawFlashFade( void ) {
 			CG_SetScreenPlacement(PLACE_STRETCH, PLACE_STRETCH);
 		 	CG_FillRect( 0, 0, 640, 480, col );
 			CG_SetScreenPlacement(PLACE_CENTER, PLACE_CENTER);
-		} else {	
+		} else {
 			CG_FillRect( 0, 0, 640, 480, col );
 		}
+	}
+}
+
+/*
+=================
+CG_DrawTimeDilationEffect
+
+Cosmetic desaturating/dark vignette overlay, sells the world-slow-motion
+effect while the weapon wheel is open. Purely presentational -- driven by
+cgs.timeDilation, which mirrors the authoritative CS_TIMEDILATION value.
+=================
+*/
+static void CG_DrawTimeDilationEffect( void ) {
+	vec4_t col;
+	float amount;
+
+	amount = 1.0f - cgs.timeDilation;
+	if ( amount <= 0.0f ) {
+		return;
+	}
+	if ( amount > 1.0f ) {
+		amount = 1.0f;
+	}
+
+	VectorClear( col );
+	col[3] = amount * 0.35f;
+
+	if ( cg_fixedAspect.integer ) {
+		CG_SetScreenPlacement( PLACE_STRETCH, PLACE_STRETCH );
+		CG_FillRect( 0, 0, 640, 480, col );
+		CG_SetScreenPlacement( PLACE_CENTER, PLACE_CENTER );
+	} else {
+		CG_FillRect( 0, 0, 640, 480, col );
 	}
 }
 
@@ -3856,6 +3890,7 @@ static void CG_DrawFlashBlend( void ) {
 	CG_DrawFlashFire();
 	CG_DrawFlashDamage();
 	CG_DrawFlashFade();
+	CG_DrawTimeDilationEffect();
 }
 
 // NERVE - SMF
@@ -4228,6 +4263,12 @@ static void CG_Draw2D(stereoFrame_t stereoFrame) {
 		CG_DrawWarmup();
 	}
 
+	if (cg.weaponWheel.active)
+	{
+		CG_UpdateWeaponWheelSelection(cgs.cursorX, cgs.cursorY);
+		CG_DrawWeaponWheel();
+	}
+
 	// don't draw center string if scoreboard is up
 	if ( !CG_DrawScoreboard() ) {
 		CG_DrawCenterString();
@@ -4386,3 +4427,399 @@ void CG_DrawActive( stereoFrame_t stereoView ) {
 	CG_Draw2D(stereoView);
 }
 
+
+// WEAPON WHEEL ROUTINE HERE //
+
+static qboolean isChargeBased( int weap ) {
+	switch ( weap ) {
+	case WP_AIRSTRIKE:
+	case WP_POISONGAS:
+	case WP_DYNAMITE_ENG:
+	case WP_SMOKE_BOMB:
+		return qtrue;
+	}
+	return qfalse;
+}
+
+static qboolean isClipOnly( int weap ) {
+	switch ( weap ) {
+	case WP_GRENADE_LAUNCHER:
+	case WP_GRENADE_PINEAPPLE:
+	case WP_DYNAMITE:
+	case WP_TESLA:
+	case WP_FLAMETHROWER:
+	case WP_KNIFE:
+		return qtrue;
+	}
+	return qfalse;
+}
+
+int CG_CollectWeaponWheelWeapons( int *visibleWeapons, int maxWeapons ) {
+	int numVisible = 0;
+
+	for ( int w = 1; w < MAX_WEAPONS; w++ ) {
+
+		if ( !COM_BitCheck( cg.snap->ps.weapons, w ) )
+			continue;
+
+		switch ( w ) {
+
+		case WP_KNIFE:
+		case WP_LUGER:
+		case WP_SILENCER:
+		case WP_COLT:
+		case WP_AKIMBO:
+		case WP_TT33:
+		case WP_DUAL_TT33:
+		case WP_REVOLVER:
+		case WP_HDM:
+
+		case WP_MP40:
+		case WP_MP34:
+		case WP_STEN:
+		case WP_THOMPSON:
+		case WP_PPSH:
+
+		case WP_MAUSER:
+		case WP_GARAND:
+		case WP_MOSIN:
+		case WP_DELISLE:
+
+		case WP_G43:
+		case WP_M1GARAND:
+		case WP_M1941:
+
+		case WP_FG42:
+		case WP_MP44:
+		case WP_BAR:
+
+		case WP_M97:
+		case WP_AUTO5:
+		case WP_M30:
+
+		case WP_PANZERFAUST:
+		case WP_FLAMETHROWER:
+		case WP_MG42M:
+		case WP_BROWNING:
+
+		case WP_VENOM:
+		case WP_TESLA:
+
+		case WP_GRENADE_LAUNCHER:
+		case WP_POISONGAS:
+		case WP_GRENADE_PINEAPPLE:
+		case WP_DYNAMITE:
+		case WP_DYNAMITE_ENG:
+		case WP_AIRSTRIKE:
+		case WP_SMOKE_BOMB:
+			break;
+
+		default:
+			continue;
+		}
+
+        if ( cgs.gametype != GT_SURVIVAL ) {
+		if ( !isChargeBased( w ) ) {
+			int ammoIndex = BG_FindAmmoForWeapon( w );
+			int clipIndex = BG_FindClipForWeapon( w );
+
+			if ( ammoIndex < 0 && clipIndex < 0 )
+				continue;
+
+			if ( ( ammoIndex < 0 || cg.snap->ps.ammo[ammoIndex] <= 0 ) &&
+				( clipIndex < 0 || cg.snap->ps.ammoclip[clipIndex] <= 0 ) )
+				continue;
+		}
+		}
+
+		if ( numVisible >= maxWeapons ) {
+			break;
+		}
+
+		visibleWeapons[numVisible++] = w;
+	}
+
+	return numVisible;
+}
+
+static void CG_WeaponWheelAmmoText( int weap, char *buffer, int bufferSize ) {
+	int ammoIndex;
+	int clipIndex;
+
+	buffer[0] = '\0';
+
+	if ( isChargeBased( weap ) ) {
+		return;
+	}
+
+	ammoIndex = BG_FindAmmoForWeapon( weap );
+	clipIndex = BG_FindClipForWeapon( weap );
+
+	if ( isClipOnly( weap ) ) {
+		if ( clipIndex >= 0 ) {
+			Com_sprintf( buffer, bufferSize, "%i",
+				cg.snap->ps.ammoclip[clipIndex] );
+		}
+		return;
+	}
+
+	if ( clipIndex >= 0 && ammoIndex >= 0 ) {
+		Com_sprintf( buffer, bufferSize, "%i/%i",
+			cg.snap->ps.ammoclip[clipIndex],
+			cg.snap->ps.ammo[ammoIndex] );
+	} else if ( ammoIndex >= 0 ) {
+		Com_sprintf( buffer, bufferSize, "%i",
+			cg.snap->ps.ammo[ammoIndex] );
+	} else if ( clipIndex >= 0 ) {
+		Com_sprintf( buffer, bufferSize, "%i",
+			cg.snap->ps.ammoclip[clipIndex] );
+	}
+}
+
+
+static const char *CG_WeaponWheelName( int weap ) {
+	gitem_t *item;
+	int itemNum;
+
+	item = BG_FindItemForWeapon( weap );
+	if ( !item ) {
+		return "";
+	}
+
+	itemNum = item - bg_itemlist;
+
+	if ( itemNum <= 0 ) {
+		return "";
+	}
+
+	if ( !cgs.itemPrintNames[itemNum][0] ) {
+		return "";
+	}
+
+	return cgs.itemPrintNames[itemNum];
+}
+
+void CG_DrawWeaponWheel( void ) {
+	float cx, cy;
+	float radius;
+
+	if ( !cg.weaponWheel.active ) {
+		return;
+	}
+
+	cx = SCREEN_WIDTH * 0.35f;
+	cy = SCREEN_HEIGHT * 0.5f;
+
+	int visibleWeapons[MAX_WEAPONS];
+	int numVisible = CG_CollectWeaponWheelWeapons( visibleWeapons, MAX_WEAPONS );
+
+	if ( numVisible <= 0 ) {
+		return;
+	}
+
+	// --- dynamic radius ---
+	float t = ( cg.time - cg.weaponWheel.openTime ) / 150.0f;
+	if ( t > 1.0f )
+		t = 1.0f;
+
+	float baseRadius = 100.0f;
+	float extra = numVisible * 3.0f;
+
+	radius = baseRadius + extra;
+	radius *= t;
+
+	if ( numVisible < 5 ) {
+		radius = 85.0f * t;
+	}
+
+	if ( radius > 200.0f ) {
+		radius = 200.0f;
+	}
+
+	// --- adaptive scale ---
+	float scale = 1.0f;
+
+	if ( numVisible > 10 ) {
+		scale = 0.8f;
+	}
+	if ( numVisible > 16 ) {
+		scale = 0.65f;
+	}
+
+	for ( int idx = 0; idx < numVisible; idx++ ) {
+
+		int weap = visibleWeapons[idx];
+
+		CG_RegisterWeapon( weap, qfalse );
+
+		qboolean wideweap;
+
+		switch ( weap ) {
+		case WP_THOMPSON:
+		case WP_MP40:
+		case WP_MP34:
+		case WP_PPSH:
+		case WP_MOSIN:
+		case WP_G43:
+		case WP_M1GARAND:
+		case WP_BAR:
+		case WP_M30:
+		case WP_MP44:
+		case WP_MG42M:
+		case WP_M97:
+		case WP_AUTO5:
+		case WP_BROWNING:
+		case WP_STEN:
+		case WP_MAUSER:
+		case WP_DELISLE:
+		case WP_GARAND:
+		case WP_VENOM:
+		case WP_TESLA:
+		case WP_PANZERFAUST:
+		case WP_FLAMETHROWER:
+		case WP_FG42:
+		case WP_FG42SCOPE:
+		case WP_M1941:
+			wideweap = qtrue;
+			break;
+		default:
+			wideweap = qfalse;
+			break;
+		}
+
+		float selectedScale = ( weap == cg.weaponWheel.hoveredWeapon ) ? 1.3f : 1.0f;
+
+		float h = 40.0f * scale * selectedScale;
+		float w = wideweap ? ( h * 2.0f ) : h;
+
+		float x = cx;
+		float y = cy;
+
+		if ( numVisible == 1 ) {
+			x = cx;
+			y = cy - radius;
+		} else if ( numVisible == 2 ) {
+			if ( idx == 0 ) {
+				x = cx - radius;
+				y = cy;
+			} else {
+				x = cx + radius;
+				y = cy;
+			}
+		} else if ( numVisible == 3 ) {
+			if ( idx == 0 ) {
+				x = cx;
+				y = cy - radius;
+			} else if ( idx == 1 ) {
+				x = cx + radius * 0.85f;
+				y = cy + radius * 0.55f;
+			} else {
+				x = cx - radius * 0.85f;
+				y = cy + radius * 0.55f;
+			}
+		} else if ( numVisible == 4 ) {
+			if ( idx == 0 ) {
+				x = cx;
+				y = cy - radius;
+			} else if ( idx == 1 ) {
+				x = cx + radius;
+				y = cy;
+			} else if ( idx == 2 ) {
+				x = cx;
+				y = cy + radius;
+			} else {
+				x = cx - radius;
+				y = cy;
+			}
+		} else {
+			float angleOffset = ( 2.0f * M_PI ) / (float)numVisible * 0.5f;
+			float angle = ( (float)idx / (float)numVisible ) * 2.0f * M_PI;
+			angle += angleOffset;
+			angle -= M_PI * 0.5f;
+
+			x = cx + cosf( angle ) * radius;
+			y = cy + sinf( angle ) * radius;
+		}
+
+		qhandle_t icon;
+
+		if ( weap == cg.weaponWheel.hoveredWeapon ) {
+			icon = cg_weapons[weap].weaponIcon[1];
+		} else {
+			icon = cg_weapons[weap].weaponIcon[0];
+		}
+
+		CG_DrawPic( x - w * 0.5f, y - h * 0.5f, w, h, icon );
+	}
+
+	if ( cg.weaponWheel.hoveredWeapon > 0 ) {
+		const char *weaponName = CG_WeaponWheelName( cg.weaponWheel.hoveredWeapon );
+		char ammoText[32];
+		float color[4];
+		int w;
+
+		CG_WeaponWheelAmmoText( cg.weaponWheel.hoveredWeapon, ammoText, sizeof( ammoText ) );
+
+		color[0] = 1.0f;
+		color[1] = 1.0f;
+		color[2] = 1.0f;
+		color[3] = 1.0f;
+
+		if ( weaponName && weaponName[0] ) {
+			w = CG_DrawStrlen( weaponName ) * 10;
+
+#ifdef LOCALISATION
+			CG_DrawStringExt2(
+				cx - ( w * 0.5f ),
+				cy + 20.0f,
+				CG_TranslateString( weaponName ),
+				color,
+				qfalse,
+				qtrue,
+				10,
+				10,
+				0
+			);
+#else
+			CG_DrawStringExt2(
+				cx - ( w * 0.5f ),
+				cy + 20.0f,
+				weaponName,
+				color,
+				qfalse,
+				qtrue,
+				10,
+				10,
+				0
+			);
+#endif
+		}
+
+		if ( ammoText[0] ) {
+			w = CG_DrawStrlen( ammoText ) * 8;
+
+			CG_DrawStringExt2(
+				cx - ( w * 0.5f ),
+				cy + 34.0f,
+				ammoText,
+				color,
+				qfalse,
+				qtrue,
+				8,
+				8,
+				0
+			);
+		}
+	}
+
+	// --- cursor ---
+	if ( fabsf( cg.weaponWheel.stickX ) <= 0.2f && fabsf( cg.weaponWheel.stickY ) <= 0.2f )
+	{
+		CG_DrawPic(
+			cgs.cursorX - 8.0f,
+			cgs.cursorY - 8.0f,
+			16.0f,
+			16.0f,
+			cgs.media.selectCursor );
+	}
+}

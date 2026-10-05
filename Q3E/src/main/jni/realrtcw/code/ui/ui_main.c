@@ -39,6 +39,11 @@ If you have questions concerning this license or the applicable additional terms
 */
 
 #include "ui_local.h"
+#ifdef STEAM
+#include "../steam/steam.h"
+#else // port: no Steam, the stub (as game/g_main.c)
+#include "../steam/steam.c"
+#endif
 
 uiInfo_t uiInfo;
 
@@ -1168,27 +1173,38 @@ qboolean ParsePairs( int handle ) {
 	return qtrue;
 }
 
-static void UI_LoadTranslateTable( void ) {
+static void UI_LoadTranslateFile( const char *filename ) {
 	pc_token_t token;
 	int handle;
 
-	handle = trap_PC_LoadSource( "text/text.txt" );
+	handle = trap_PC_LoadSource( filename );
 
 	if ( !handle ) {
 		return;
 	}
 
 	if ( !trap_PC_ReadToken( handle, &token ) ) {
+		trap_PC_FreeSource( handle );
 		return;
 	}
 
 	if ( token.string[0] != '{' ) {
-		Com_Printf( S_COLOR_YELLOW "expected {: text/text.txt\n" );
+		Com_Printf( S_COLOR_YELLOW "expected {: %s\n", filename );
 	} else if ( !ParsePairs( handle ) ) {
-		Com_Printf( S_COLOR_YELLOW "translate parse error: text/text.txt\n" );
+		Com_Printf( S_COLOR_YELLOW "translate parse error: %s\n", filename );
 	}
 
 	trap_PC_FreeSource( handle );
+}
+
+static void UI_LoadTranslateTable( void ) {
+	UI_LoadTranslateFile( "text/text.txt" );
+
+	for ( int i = 1; i < 10; i++ ) {
+		char filename[MAX_QPATH];
+		Com_sprintf( filename, sizeof( filename ), "text/text_%d.txt", i );
+		UI_LoadTranslateFile( filename );
+	}
 }
 
 /*
@@ -1197,21 +1213,21 @@ UI_LoadbonusStrings
 ==============
 */
 #define MAX_BUFFER_BONUS          20000
-static void UI_LoadbonusStrings( void ) {
+// key/value format, matched by name instead of position, so multiple files can extend the table
+static void UI_ParseBonusStringsFile( const char *filename ) {
 	char buffer[MAX_BUFFER_BONUS];
 	char *text;
-	char filename[MAX_QPATH];
 	fileHandle_t f;
 	int len, i, numStrings;
-	char *token;
+	char *token, *value;
+	char key[MAX_QPATH]; // COM_ParseExt reuses one buffer, so copy the key out before parsing the value
 
-	Com_sprintf( filename, MAX_QPATH, "text/bonus_strings.txt" );
 	len = trap_FS_FOpenFile( filename, &f, FS_READ );
 	if ( len <= 0 ) {
 		return;
 	}
 	if ( len > MAX_BUFFER_BONUS ) {
-//		CG_Error( "%s is too big, make it smaller (max = %i bytes)\n", filename, MAX_BUFFER );
+		return;
 	}
 
 	// load the file into memory
@@ -1221,19 +1237,64 @@ static void UI_LoadbonusStrings( void ) {
 	// parse the list
 	text = buffer;
 
+	token = COM_ParseExt( &text, qtrue );
+	if ( token[0] != '{' ) {
+		return;
+	}
+
 	numStrings = sizeof( bonusStrings ) / sizeof( bonusStrings[0] ) - 1;
 
-	for ( i = 0; i < numStrings; i++ ) {
+	while ( 1 ) {
 		token = COM_ParseExt( &text, qtrue );
 		if ( !token[0] ) {
 			break;
 		}
+		if ( token[0] == '}' ) {
+			break;
+		}
+		Q_strncpyz( key, token, sizeof( key ) );
+
+		// existing entry by key, or first free slot
+		for ( i = 0; i < numStrings; i++ ) {
+			if ( !bonusStrings[i].name || !strlen( bonusStrings[i].name ) || !strcmp( bonusStrings[i].name, key ) ) {
+				break;
+			}
+		}
+
+		value = COM_ParseExt( &text, qfalse );
+
+		if ( i >= numStrings ) {
+			continue;
+		}
+
+		if ( !bonusStrings[i].name || !strlen( bonusStrings[i].name ) ) {
 #ifdef Q3_VM // new IORTCW syscall (works for qvms and dlls), but have dlls use vanilla rtcw compatible code
-		bonusStrings[i].localname = (char *)trap_Alloc( strlen( token ) + 1 );
+			bonusStrings[i].name = (char *)trap_Alloc( strlen( key ) + 1 );
 #else
-		bonusStrings[i].localname = (char *)malloc( strlen( token ) + 1 );
+			bonusStrings[i].name = (char *)malloc( strlen( key ) + 1 );
 #endif
-		strcpy( bonusStrings[i].localname, token );
+			strcpy( bonusStrings[i].name, key );
+		}
+
+#ifdef Q3_VM
+		bonusStrings[i].localname = (char *)trap_Alloc( strlen( value ) + 1 );
+#else
+		bonusStrings[i].localname = (char *)malloc( strlen( value ) + 1 );
+#endif
+		strcpy( bonusStrings[i].localname, value );
+	}
+}
+
+// also loads bonus_strings_1.txt.._9.txt, so custom campaigns can add keys without editing the base file
+static void UI_LoadbonusStrings( void ) {
+	char filename[MAX_QPATH];
+	int i;
+
+	UI_ParseBonusStringsFile( "text/bonus_strings.txt" );
+
+	for ( i = 1; i < 10; i++ ) {
+		Com_sprintf( filename, sizeof( filename ), "text/bonus_strings_%d.txt", i );
+		UI_ParseBonusStringsFile( filename );
 	}
 }
 
@@ -1818,7 +1879,7 @@ static void UI_DrawMapPreview( rectDef_t *rect, float scale, vec4_t color, qbool
 
 static void UI_DrawMapTimeToBeat( rectDef_t *rect, int font, float scale, vec4_t color, int textStyle ) {
 	int minutes, seconds, time;
-	if ( ui_currentMap.integer < 0 || ui_currentMap.integer > uiInfo.mapCount ) {
+	if ( ui_currentMap.integer < 0 || ui_currentMap.integer >= uiInfo.mapCount ) {
 		ui_currentMap.integer = 0;
 		trap_Cvar_Set( "ui_currentMap", "0" );
 	}
@@ -1981,10 +2042,38 @@ static void UI_DrawNetMapPreview( rectDef_t *rect, float scale, vec4_t color ) {
 	}
 }
 
+/*
+==================
+UI_MapPreviewShader
+
+Campaign / create-server map previews live in levelshots/ui_<mapname>
+(optionally levelshots/ui_<mapname>_s<n> for the small variants). When that
+image is missing, fall back to the map's regular levelshot
+(levelshots/<mapname>) before the renderer's own unknownmap fallback kicks in.
+==================
+*/
+static qhandle_t UI_MapPreviewShader( const char *uiName, const char *mapName ) {
+	static const char *exts[] = { "tga", "jpg", "jpeg", "png", "pcx" };
+	char			path[MAX_QPATH];
+	fileHandle_t	f;
+	int				i;
+
+	for ( i = 0; i < (int)ARRAY_LEN( exts ); i++ ) {
+		Com_sprintf( path, sizeof( path ), "levelshots/%s.%s", uiName, exts[i] );
+		if ( trap_FS_FOpenFile( path, &f, FS_READ ) >= 0 ) {
+			trap_FS_FCloseFile( f );
+			return trap_R_RegisterShaderNoMip( va( "levelshots/%s", uiName ) );
+		}
+	}
+
+	return trap_R_RegisterShaderNoMip( va( "levelshots/%s", mapName ) );
+}
+
 static void UI_DrawSmallCreateMapPreview( rectDef_t *rect, float scale, vec4_t color, int number ) {
 
-	if ( uiInfo.mapList[ui_currentNetMap.integer].mapLoadName ) {
-		UI_DrawHandlePic( rect->x, rect->y, rect->w, rect->h, trap_R_RegisterShaderNoMip( va( "levelshots/ui_%s_s%d", uiInfo.mapList[ui_currentNetMap.integer].mapLoadName, number ) ) );
+	if ( ui_currentNetMap.integer >= 0 && ui_currentNetMap.integer < uiInfo.mapCount &&
+		 uiInfo.mapList[ui_currentNetMap.integer].mapLoadName ) {
+		UI_DrawHandlePic( rect->x, rect->y, rect->w, rect->h, UI_MapPreviewShader( va( "ui_%s_s%d", uiInfo.mapList[ui_currentNetMap.integer].mapLoadName, number ), uiInfo.mapList[ui_currentNetMap.integer].mapLoadName ) );
 	} else {
 		UI_DrawHandlePic( rect->x, rect->y, rect->w, rect->h, trap_R_RegisterShaderNoMip( "menu/art/unknownmap" ) );
 	}
@@ -1992,15 +2081,16 @@ static void UI_DrawSmallCreateMapPreview( rectDef_t *rect, float scale, vec4_t c
 
 static void UI_DrawCreateMapPreview( rectDef_t *rect, float scale, vec4_t color ) {
 
-	if ( uiInfo.mapList[ui_currentNetMap.integer].mapLoadName ) {
-		UI_DrawHandlePic( rect->x, rect->y, rect->w, rect->h, trap_R_RegisterShaderNoMip( va( "levelshots/ui_%s", uiInfo.mapList[ui_currentNetMap.integer].mapLoadName ) ) );
+	if ( ui_currentNetMap.integer >= 0 && ui_currentNetMap.integer < uiInfo.mapCount &&
+		 uiInfo.mapList[ui_currentNetMap.integer].mapLoadName ) {
+		UI_DrawHandlePic( rect->x, rect->y, rect->w, rect->h, UI_MapPreviewShader( va( "ui_%s", uiInfo.mapList[ui_currentNetMap.integer].mapLoadName ), uiInfo.mapList[ui_currentNetMap.integer].mapLoadName ) );
 	} else {
 		UI_DrawHandlePic( rect->x, rect->y, rect->w, rect->h, trap_R_RegisterShaderNoMip( "menu/art/unknownmap" ) );
 	}
 }
 
 static void UI_DrawNetMapCinematic( rectDef_t *rect, float scale, vec4_t color ) {
-	if ( ui_currentNetMap.integer < 0 || ui_currentNetMap.integer > uiInfo.mapCount ) {
+	if ( ui_currentNetMap.integer < 0 || ui_currentNetMap.integer >= uiInfo.mapCount ) {
 		ui_currentNetMap.integer = 0;
 		trap_Cvar_Set( "ui_currentNetMap", "0" );
 	}
@@ -3597,7 +3687,7 @@ UI_LoadMods
 */
 static void UI_LoadMods( void ) {
 	int numdirs;
-	char dirlist[2048];
+	char dirlist[8192];
 	char    *dirptr;
 	char  *descptr;
 	int i;
@@ -4612,6 +4702,34 @@ static void UI_Update( const char *name ) {
 
 }
 
+static int UI_GetNextManualSaveIndexForMap( const char *mapname ) {
+	int i;
+	int count = 0;
+	int mapnameLen;
+
+	if ( !mapname || !mapname[0] ) {
+		return 1;
+	}
+
+	mapnameLen = strlen( mapname );
+
+	for ( i = 0; i < uiInfo.savegameCount; i++ ) {
+		const char *saveName = uiInfo.savegameList[i].savegameName;
+
+		if ( !saveName || !saveName[0] ) {
+			continue;
+		}
+
+		if ( !Q_strncmp( saveName, mapname, mapnameLen ) ) {
+			count++;
+		}
+	}
+
+	return count + 1;
+
+}
+
+
 
 /*
 ==============
@@ -4670,10 +4788,12 @@ static void UI_RunMenuScript( char **args ) {
 			UI_GameType_HandleKey( 0, NULL, K_MOUSE1, qfalse );
 			UI_GameType_HandleKey( 0, NULL, K_MOUSE2, qfalse );
 		} else if ( Q_stricmp( name, "StartSurvival" ) == 0 ) {
-			trap_Cvar_Set( "cg_thirdPerson", "0" );
-			trap_Cvar_Set( "cg_cameraOrbit", "0" );
-			trap_Cvar_SetValue( "g_gametype", 3 );
-			trap_Cmd_ExecuteText( EXEC_APPEND, va( "wait ; wait ; map %s\n", uiInfo.mapList[ui_currentNetMap.integer].mapLoadName ) );
+			if ( ui_currentNetMap.integer >= 0 && ui_currentNetMap.integer < uiInfo.mapCount ) {
+				trap_Cvar_Set( "cg_thirdPerson", "0" );
+				trap_Cvar_Set( "cg_cameraOrbit", "0" );
+				trap_Cvar_SetValue( "g_gametype", 3 );
+				trap_Cmd_ExecuteText( EXEC_APPEND, va( "wait ; wait ; map %s\n", uiInfo.mapList[ui_currentNetMap.integer].mapLoadName ) );
+			}
 
 		} else if (Q_stricmp( name, "validate_openURL" ) == 0 ) 
 		{
@@ -4708,6 +4828,8 @@ static void UI_RunMenuScript( char **args ) {
 			trap_Cvar_Set( "com_recommendedSet", "1" );                   // NERVE - SMF
 			trap_Cmd_ExecuteText( EXEC_APPEND, "vid_restart\n" );
 // end from MP
+		} else if ( Q_stricmp( name, "ResetSteamStats" ) == 0 ) {
+			steamResetStats( 1 );
 		} else if ( Q_stricmp( name, "getCDKey" ) == 0 ) {
 			char out[17];
 			trap_GetCDKey( buff, 17 );
@@ -4740,9 +4862,68 @@ static void UI_RunMenuScript( char **args ) {
 				trap_Cvar_Set( "ui_cdkeyvalid", "CD Key does not appear to be valid." );
 			}
 		} else if ( Q_stricmp( name, "loadArenas" ) == 0 ) {
+			// force back to the survival game type in case campaign_menu left it on single player
+			ui_netGameType.integer = 3;
+			trap_Cvar_SetValue( "ui_netGameType", 3 );
 			UI_LoadArenasIntoMapList();
 			UI_MapCountByGameType( qfalse );
 			Menu_SetFeederSelection( NULL, FEEDER_ALLMAPS, 0, "survival_menu" );
+		} else if ( Q_stricmp( name, "loadCampaignArenas" ) == 0 ) {
+			// force to the single player game type so campaign maps show up in FEEDER_ALLMAPS
+			ui_netGameType.integer = 1;
+			trap_Cvar_SetValue( "ui_netGameType", 1 );
+			UI_LoadArenasIntoMapList();
+			UI_MapCountByGameType( qfalse );
+			Menu_SetFeederSelection( NULL, FEEDER_ALLMAPS, 0, "campaign_menu" );
+		} else if ( Q_stricmp( name, "StartCampaign" ) == 0 ) {
+			trap_Cvar_Set( "cg_thirdPerson", "0" );
+			trap_Cvar_Set( "cg_cameraOrbit", "0" );
+			switch ( ui_camp_bonusmode.integer ) {
+			case 1: // Walk in the Park
+				trap_Cvar_Set( "g_gameskill", "4" );
+				trap_Cvar_Set( "g_nohudchallenge", "1" );
+				trap_Cvar_Set( "g_ironchallenge", "0" );
+				trap_Cvar_Set( "g_nopickupchallenge", "0" );
+				trap_Cvar_Set( "g_decaychallenge", "0" );
+				break;
+			case 2: // Ironman
+				trap_Cvar_Set( "g_gameskill", "3" );
+				trap_Cvar_Set( "g_nohudchallenge", "0" );
+				trap_Cvar_Set( "g_ironchallenge", "1" );
+				trap_Cvar_Set( "g_nopickupchallenge", "0" );
+				trap_Cvar_Set( "g_decaychallenge", "0" );
+				break;
+			case 3: // Hardcore
+				trap_Cvar_Set( "g_gameskill", "3" );
+				trap_Cvar_Set( "g_nohudchallenge", "0" );
+				trap_Cvar_Set( "g_ironchallenge", "0" );
+				trap_Cvar_Set( "g_nopickupchallenge", "1" );
+				trap_Cvar_Set( "g_decaychallenge", "0" );
+				break;
+			case 4: // 999 Mode
+				trap_Cvar_Set( "g_gameskill", "3" );
+				trap_Cvar_Set( "g_nohudchallenge", "0" );
+				trap_Cvar_Set( "g_ironchallenge", "0" );
+				trap_Cvar_Set( "g_nopickupchallenge", "0" );
+				trap_Cvar_Set( "g_decaychallenge", "1" );
+				break;
+			case 5: // Nightmare
+				trap_Cvar_Set( "g_gameskill", "3" );
+				trap_Cvar_Set( "g_nohudchallenge", "1" );
+				trap_Cvar_Set( "g_ironchallenge", "1" );
+				trap_Cvar_Set( "g_nopickupchallenge", "1" );
+				trap_Cvar_Set( "g_decaychallenge", "0" );
+				break;
+			default: // None - use the Gameskill selection as-is, clear any leftover challenge flags
+				trap_Cvar_Set( "g_nohudchallenge", "0" );
+				trap_Cvar_Set( "g_ironchallenge", "0" );
+				trap_Cvar_Set( "g_nopickupchallenge", "0" );
+				trap_Cvar_Set( "g_decaychallenge", "0" );
+				break;
+			}
+			if ( ui_currentNetMap.integer >= 0 && ui_currentNetMap.integer < uiInfo.mapCount ) {
+				trap_Cmd_ExecuteText( EXEC_APPEND, va( "wait ; wait ; spmap %s\n", uiInfo.mapList[ui_currentNetMap.integer].mapLoadName ) );
+			}
 		} else if ( Q_stricmp( name, "saveControls" ) == 0 ) {
 			Controls_SetConfig( qtrue );
 		} else if ( Q_stricmp( name, "loadControls" ) == 0 ) {
@@ -4811,21 +4992,43 @@ static void UI_RunMenuScript( char **args ) {
 				}
 			}
 			// save with no confirm for overwrite
-		} else if ( Q_stricmp( name, "Savegame2" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "AutoSavegameName") == 0)
+		{
+			char mapname[MAX_QPATH];
+			int saveIndex;
+
+			trap_Cvar_VariableStringBuffer("mapname", mapname, sizeof(mapname));
+
+			if (!mapname[0])
+			{
+				Q_strncpyz(mapname, "Manual Save", sizeof(mapname));
+			}
+
+			saveIndex = UI_GetNextManualSaveIndexForMap(mapname);
+
+			trap_Cvar_Set( "ui_savegame", va( "%s_%i", mapname, saveIndex ) );
+		}
+		else if (Q_stricmp(name, "Savegame2") == 0)
+		{
 			if ( !strlen( name ) ) {
 				Menus_OpenByName( "save_name_popmenu" );
 			} else {
 				trap_Cmd_ExecuteText( EXEC_APPEND, va( "savegame %s\n", UI_Cvar_VariableString( "ui_savegame" ) ) );
 				Menus_CloseAll();
 			}
-		} else if ( Q_stricmp( name, "DelSavegame" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "DelSavegame") == 0)
+		{
 			int i = UI_SavegameIndexFromName2( ui_savegameName.string );
 			if ( DC->getCVarValue( "developer" ) ) {
 				Com_Printf( "would delete game (developer 0):\n   %s\n", uiInfo.savegameList[i].savegameFile );
 			} else {
 				UI_DelSavegame();
 			}
-		} else if ( Q_stricmp( name, "SavegameSort" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "SavegameSort") == 0)
+		{
 			int sortColumn;
 			if ( Int_Parse( args, &sortColumn ) ) {
 				// if same column we're already sorting on then flip the direction
@@ -4838,29 +5041,42 @@ static void UI_RunMenuScript( char **args ) {
 			//----(SA)	end
 
 			//----(SA)	added
-		} else if ( Q_stricmp( name, "playerstart" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "playerstart") == 0)
+		{
 			trap_Cmd_ExecuteText( EXEC_APPEND, "fade 0 0 0 0 3\n" );    // fade screen up
 			trap_Cvar_Set( "g_playerstart", "1" );                 // set cvar which will trigger "playerstart" in script
 			Menus_CloseAll();
 			//----(SA)	end
-
-		} else if ( Q_stricmp( name, "LoadMods" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "LoadMods") == 0)
+		{
 			UI_LoadMods();
-		} else if ( Q_stricmp( name, "playMovie" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "playMovie") == 0)
+		{
 			if ( uiInfo.previewMovie >= 0 ) {
 				trap_CIN_StopCinematic( uiInfo.previewMovie );
 			}
 			trap_Cmd_ExecuteText( EXEC_APPEND, va( "cinematic %s.roq 2\n", uiInfo.movieList[uiInfo.movieIndex] ) );
-		} else if ( Q_stricmp( name, "RunMod" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "RunMod") == 0)
+		{
 			trap_Cvar_Set( "fs_game", uiInfo.modList[uiInfo.modIndex].modName );
 			trap_Cmd_ExecuteText( EXEC_APPEND, "vid_restart;" );
-		} else if ( Q_stricmp( name, "RunDemo" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "RunDemo") == 0)
+		{
 			trap_Cmd_ExecuteText( EXEC_APPEND, va( "demo %s\n", uiInfo.demoList[uiInfo.demoIndex] ) );
-		} else if ( Q_stricmp( name, "Wolf" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "Wolf") == 0)
+		{
 			trap_Cvar_Set( "fs_game", "" );
 			trap_Cmd_ExecuteText( EXEC_APPEND, "vid_restart;" );
 			//#ifdef MISSIONPACK			// NERVE - SMF - enabled for multiplayer
-		} else if ( Q_stricmp( name, "closeJoin" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "closeJoin") == 0)
+		{
 			if ( uiInfo.serverStatus.refreshActive ) {
 				UI_StopServerRefresh();
 				uiInfo.serverStatus.nextDisplayRefresh = 0;
@@ -4872,30 +5088,42 @@ static void UI_RunMenuScript( char **args ) {
 				Menus_OpenByName( "main" );
 			}
 			//#endif
-		} else if ( Q_stricmp( name, "StopRefresh" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "StopRefresh") == 0)
+		{
 			//#ifdef MISSIONPACK			// NERVE - SMF - enabled for multiplayer
 			UI_StopServerRefresh();
 			uiInfo.serverStatus.nextDisplayRefresh = 0;
 			uiInfo.nextServerStatusRefresh = 0;
 			uiInfo.nextFindPlayerRefresh = 0;
-		} else if ( Q_stricmp( name, "UpdateFilter" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "UpdateFilter") == 0)
+		{
 			// UpdateFilter is called when server broser menu is opened and when a favorite server is deleted.
 			UI_StartServerRefresh(qtrue, qfalse);
 			UI_BuildServerDisplayList( qtrue );
 			UI_FeederSelection( FEEDER_SERVERS, 0 );
-		} else if ( Q_stricmp( name, "ServerStatus" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "ServerStatus") == 0)
+		{
 			trap_LAN_GetServerAddressString( ui_netSource.integer, uiInfo.serverStatus.displayServers[uiInfo.serverStatus.currentServer], uiInfo.serverStatusAddress, sizeof( uiInfo.serverStatusAddress ) );
 			UI_BuildServerStatus( qtrue );
-		} else if ( Q_stricmp( name, "FoundPlayerServerStatus" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "FoundPlayerServerStatus") == 0)
+		{
 			Q_strncpyz( uiInfo.serverStatusAddress, uiInfo.foundPlayerServerAddresses[uiInfo.currentFoundPlayerServer], sizeof( uiInfo.serverStatusAddress ) );
 			UI_BuildServerStatus( qtrue );
 			Menu_SetFeederSelection( NULL, FEEDER_FINDPLAYER, 0, NULL );
-		} else if ( Q_stricmp( name, "FindPlayer" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "FindPlayer") == 0)
+		{
 			UI_BuildFindPlayerList( qtrue );
 			// clear the displayed server status info
 			uiInfo.serverStatusInfo.numLines = 0;
 			Menu_SetFeederSelection( NULL, FEEDER_FINDPLAYER, 0, NULL );
-		} else if ( Q_stricmp( name, "JoinServer" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "JoinServer") == 0)
+		{
 			trap_Cvar_Set( "cg_thirdPerson", "0" );
 			trap_Cvar_Set( "cg_cameraOrbit", "0" );
 			trap_Cvar_Set( "ui_singlePlayerActive", "0" );
@@ -4903,26 +5131,36 @@ static void UI_RunMenuScript( char **args ) {
 				trap_LAN_GetServerAddressString(UI_SourceForLAN(), uiInfo.serverStatus.displayServers[uiInfo.serverStatus.currentServer], buff, 1024);
 				trap_Cmd_ExecuteText( EXEC_APPEND, va( "connect %s\n", buff ) );
 			}
-		} else if ( Q_stricmp( name, "FoundPlayerJoinServer" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "FoundPlayerJoinServer") == 0)
+		{
 			trap_Cvar_Set( "ui_singlePlayerActive", "0" );
 			if ( uiInfo.currentFoundPlayerServer >= 0 && uiInfo.currentFoundPlayerServer < uiInfo.numFoundPlayerServers ) {
 				trap_Cmd_ExecuteText( EXEC_APPEND, va( "connect %s\n", uiInfo.foundPlayerServerAddresses[uiInfo.currentFoundPlayerServer] ) );
 			}
 			//#endif	// #ifdef MISSIONPACK
-		} else if ( Q_stricmp( name, "Quit" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "Quit") == 0)
+		{
 			trap_Cvar_Set( "ui_singlePlayerActive", "0" );
 			trap_Cmd_ExecuteText( EXEC_NOW, "quit" );
-		} else if ( Q_stricmp( name, "Controls" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "Controls") == 0)
+		{
 			trap_Cvar_Set( "cl_paused", "1" );
 			trap_Key_SetCatcher( KEYCATCH_UI );
 			Menus_CloseAll();
 			Menus_ActivateByName( "setup_menu2" );
-		} else if ( Q_stricmp( name, "Leave" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "Leave") == 0)
+		{
 			trap_Cmd_ExecuteText( EXEC_APPEND, "disconnect\n" );
 			trap_Key_SetCatcher( KEYCATCH_UI );
 			Menus_CloseAll();
 			Menus_ActivateByName( "main" );
-		} else if ( Q_stricmp( name, "ServerSort" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "ServerSort") == 0)
+		{
 			int sortColumn;
 			if ( Int_Parse( args, &sortColumn ) ) {
 				// if same column we're already sorting on then flip the direction
@@ -4932,32 +5170,48 @@ static void UI_RunMenuScript( char **args ) {
 				// make sure we sort again
 				UI_ServersSort( sortColumn, qtrue );
 			}
-		} else if ( Q_stricmp( name, "nextSkirmish" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "nextSkirmish") == 0)
+		{
 			UI_StartSkirmish( qtrue );
-		} else if ( Q_stricmp( name, "SkirmishStart" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "SkirmishStart") == 0)
+		{
 			UI_StartSkirmish( qfalse );
-		} else if ( Q_stricmp( name, "closeingame" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "closeingame") == 0)
+		{
 			trap_Key_SetCatcher( trap_Key_GetCatcher() & ~KEYCATCH_UI );
 			trap_Key_ClearStates();
 			trap_Cvar_Set( "cl_paused", "0" );
 			Menus_CloseAll();
-		} else if ( Q_stricmp( name, "voteMap" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "voteMap") == 0)
+		{
 			if ( ui_currentNetMap.integer >= 0 && ui_currentNetMap.integer < uiInfo.mapCount ) {
 				trap_Cmd_ExecuteText( EXEC_APPEND, va( "callvote map %s\n",uiInfo.mapList[ui_currentNetMap.integer].mapLoadName ) );
 			}
-		} else if ( Q_stricmp( name, "voteKick" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "voteKick") == 0)
+		{
 			if ( uiInfo.playerIndex >= 0 && uiInfo.playerIndex < uiInfo.playerCount ) {
 				trap_Cmd_ExecuteText( EXEC_APPEND, va( "callvote kick %s\n",uiInfo.playerNames[uiInfo.playerIndex] ) );
 			}
-		} else if ( Q_stricmp( name, "voteGame" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "voteGame") == 0)
+		{
 			if ( ui_netGameType.integer >= 0 && ui_netGameType.integer < uiInfo.numGameTypes ) {
 				trap_Cmd_ExecuteText( EXEC_APPEND, va( "callvote g_gametype %i\n",uiInfo.gameTypes[ui_netGameType.integer].gtEnum ) );
 			}
-		} else if ( Q_stricmp( name, "voteLeader" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "voteLeader") == 0)
+		{
 			if ( uiInfo.teamIndex >= 0 && uiInfo.teamIndex < uiInfo.myTeamCount ) {
 				trap_Cmd_ExecuteText( EXEC_APPEND, va( "callteamvote leader %s\n",uiInfo.teamNames[uiInfo.teamIndex] ) );
 			}
-		} else if ( Q_stricmp( name, "addFavorite" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "addFavorite") == 0)
+		{
 			if ( ui_netSource.integer != UIAS_FAVORITES ) {
 				char name[MAX_NAME_LENGTH];
 				char addr[MAX_ADDRESSLENGTH];
@@ -4981,7 +5235,9 @@ static void UI_RunMenuScript( char **args ) {
 					}
 				}
 			}
-		} else if ( Q_stricmp( name, "deleteFavorite" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "deleteFavorite") == 0)
+		{
 			if ( ui_netSource.integer == UIAS_FAVORITES ) {
 				char addr[MAX_ADDRESSLENGTH];
 				trap_LAN_GetServerInfo( AS_FAVORITES, uiInfo.serverStatus.displayServers[uiInfo.serverStatus.currentServer], buff, MAX_STRING_CHARS );
@@ -4991,7 +5247,9 @@ static void UI_RunMenuScript( char **args ) {
 					trap_LAN_RemoveServer( AS_FAVORITES, addr );
 				}
 			}
-		} else if ( Q_stricmp( name, "createFavorite" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "createFavorite") == 0)
+		{
 			char name[MAX_NAME_LENGTH];
 			char addr[MAX_ADDRESSLENGTH];
 			int res;
@@ -5012,7 +5270,9 @@ static void UI_RunMenuScript( char **args ) {
 					Com_Printf( "Added favorite server %s\n", addr );
 				}
 			}
-		} else if ( Q_stricmp( name, "orders" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "orders") == 0)
+		{
 			const char *orders;
 			if ( String_Parse( args, &orders ) ) {
 				int selectedPlayer = trap_Cvar_VariableValue( "cg_selectedPlayer" );
@@ -5036,7 +5296,9 @@ static void UI_RunMenuScript( char **args ) {
 				trap_Cvar_Set( "cl_paused", "0" );
 				Menus_CloseAll();
 			}
-		} else if ( Q_stricmp( name, "voiceOrdersTeam" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "voiceOrdersTeam") == 0)
+		{
 			const char *orders;
 			if ( String_Parse( args, &orders ) ) {
 				int selectedPlayer = trap_Cvar_VariableValue( "cg_selectedPlayer" );
@@ -5049,7 +5311,9 @@ static void UI_RunMenuScript( char **args ) {
 				trap_Cvar_Set( "cl_paused", "0" );
 				Menus_CloseAll();
 			}
-		} else if ( Q_stricmp( name, "voiceOrders" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "voiceOrders") == 0)
+		{
 			const char *orders;
 			if ( String_Parse( args, &orders ) ) {
 				int selectedPlayer = trap_Cvar_VariableValue( "cg_selectedPlayer" );
@@ -5064,30 +5328,48 @@ static void UI_RunMenuScript( char **args ) {
 				Menus_CloseAll();
 			}
 			//#endif	// #ifdef MISSIONPACK
-		} else if ( Q_stricmp( name, "glCustom" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "glCustom") == 0)
+		{
 			trap_Cvar_Set( "ui_glCustom", "4" );
-		} else if ( Q_stricmp( name, "update" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "update") == 0)
+		{
 			if ( String_Parse( args, &name2 ) ) {
 				UI_Update( name2 );
 			}
 			// NERVE - SMF
 //----(SA)	// start other .exe
-		} else if ( Q_stricmp( name, "startSingleplayer" ) == 0 ) {  // so it doesn't barf if it gets a mp menu
+		}
+		else if (Q_stricmp(name, "startSingleplayer") == 0)
+		{ // so it doesn't barf if it gets a mp menu
 			trap_Cmd_ExecuteText( EXEC_APPEND, "startMultiplayer\n" );
-		} else if ( Q_stricmp( name, "startMultiplayer" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "startMultiplayer") == 0)
+		{
 			trap_Cmd_ExecuteText( EXEC_APPEND, "startMultiplayer\n" );
 //----(SA)
-		} else if ( Q_stricmp( name, "wm_showPickPlayer" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "wm_showPickPlayer") == 0)
+		{
 			Menus_CloseAll();
 			Menus_OpenByName( "wm_pickplayer" );
-		} else if ( Q_stricmp( name, "wm_showPickTeam" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "wm_showPickTeam") == 0)
+		{
 			Menus_CloseAll();
 			Menus_OpenByName( "wm_pickteam" );
-		} else if ( Q_stricmp( name, "changePlayerType" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "changePlayerType") == 0)
+		{
 			WM_ChangePlayerType();
-		} else if ( Q_stricmp( name, "getSpawnPoints" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "getSpawnPoints") == 0)
+		{
 			WM_GetSpawnPoints();
-		} else if ( Q_stricmp( name, "wm_pickitem2" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "wm_pickitem2") == 0)
+		{
 			const char *param, *param2;
 			int selectType = 0, itemIndex = 0;
 
@@ -5096,7 +5378,9 @@ static void UI_RunMenuScript( char **args ) {
 				itemIndex = atoi( param2 );
 				WM_PickItem( selectType, itemIndex );
 			}
-		} else if ( Q_stricmp( name, "startMultiplayer" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "startMultiplayer") == 0)
+		{
 			int team, playerType, weapon, pistol, item1, i;
 			const char *teamStr, *classStr, *weapStr;
 
@@ -5147,15 +5431,22 @@ static void UI_RunMenuScript( char **args ) {
 			} else {
 				trap_Cmd_ExecuteText( EXEC_APPEND, va( "team %s %i %i %i %i 1\n", "s", playerType, weapon, pistol, item1 ) );
 			}
-
-		} else if ( Q_stricmp( name, "limboChat" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "limboChat") == 0)
+		{
 			WM_LimboChat();
-		} else if ( Q_stricmp( name, "activateLimboChat" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "activateLimboChat") == 0)
+		{
 			WM_ActivateLimboChat();
 			// -NERVE - SMF
-		} else if ( Q_stricmp( name, "setrecommended" ) == 0 ) {
+		}
+		else if (Q_stricmp(name, "setrecommended") == 0)
+		{
 			trap_Cmd_ExecuteText( EXEC_APPEND, "setRecommended 1\n" );
-		} else {
+		}
+		else
+		{
 			Com_Printf( "unknown UI script %s\n", name );
 		}
 	}
@@ -5174,6 +5465,8 @@ static int UI_MapCountByGameType( qboolean singlePlayer ) {
 	c = 0;
 	game = singlePlayer ? uiInfo.gameTypes[ui_gameType.integer].gtEnum : uiInfo.gameTypes[ui_netGameType.integer].gtEnum;
 	static int s_lastEnemiesFilter = -1;
+	static int s_lastChapterFilter = -1;
+	static int s_lastMidgameFilter = -1;
 
 	/*
 	if ( game == GT_SINGLE_PLAYER ) {
@@ -5181,9 +5474,17 @@ static int UI_MapCountByGameType( qboolean singlePlayer ) {
 	}
 	*/
 
-	if ( ui_sv_enemies.integer != s_lastEnemiesFilter ) {
+	if ( ui_sv_enemies.integer != s_lastEnemiesFilter ||
+		 ui_camp_chapter.integer != s_lastChapterFilter ||
+		 ui_midgame.integer != s_lastMidgameFilter ) {
         s_lastEnemiesFilter = ui_sv_enemies.integer;
+        s_lastChapterFilter = ui_camp_chapter.integer;
+        s_lastMidgameFilter = ui_midgame.integer;
         UI_LoadArenasIntoMapList();
+
+        trap_Cvar_SetValue( "ui_currentNetMap", 0 );
+        ui_currentNetMap.integer = 0;
+        Menu_SetFeederSelection( NULL, FEEDER_ALLMAPS, 0, NULL );
     }
 
 	for ( i = 0; i < uiInfo.mapCount; i++ ) {
@@ -6775,6 +7076,8 @@ void _UI_Init( qboolean inGameLoad ) {
 
 	//uiInfo.inGameLoad = inGameLoad;
 
+	steamInit();
+
 	UI_RegisterCvars();
 	UI_InitMemory();
 
@@ -6895,6 +7198,7 @@ void _UI_Init( qboolean inGameLoad ) {
 //	UI_LoadTeams();
 	UI_ParseGameInfo("gameinfo.txt");
 	UI_LoadArenas();
+	UI_ResolveArenaLongnames();
 
 	menuSet = UI_Cvar_VariableString( "ui_menuFiles" );
 	if ( menuSet == NULL || menuSet[0] == '\0' ) {
@@ -7563,6 +7867,9 @@ vmCvar_t ui_limboMode;
 
 vmCvar_t  cg_autoReload;
 vmCvar_t  ui_sv_enemies;
+vmCvar_t  ui_camp_chapter;
+vmCvar_t  ui_camp_bonusmode;
+vmCvar_t  ui_midgame;
 // -NERVE - SMF
 
 cvarTable_t cvarTable[] = {
@@ -7681,6 +7988,9 @@ cvarTable_t cvarTable[] = {
 	{ NULL, "g_localTeamPref", "", 0 },
 
 	{ &ui_sv_enemies, "ui_sv_enemies", "0", CVAR_ARCHIVE },
+	{ &ui_camp_chapter, "ui_camp_chapter", "0", CVAR_ARCHIVE },
+	{ &ui_camp_bonusmode, "ui_camp_bonusmode", "0", CVAR_ARCHIVE },
+	{ &ui_midgame, "g_midgame", "0", CVAR_ARCHIVE | CVAR_LATCH },
 };
 
 static int		cvarTableSize = ARRAY_LEN( cvarTable );

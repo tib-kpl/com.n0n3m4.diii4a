@@ -110,6 +110,7 @@ qboolean AICast_ScriptAction_Mount( cast_state_t *cs, char *params );
 qboolean AICast_ScriptAction_Unmount( cast_state_t *cs, char *params );
 qboolean AICast_ScriptAction_SavePersistant( cast_state_t *cs, char *params );
 qboolean AICast_ScriptAction_ChangeLevel( cast_state_t *cs, char *params );
+qboolean AICast_ScriptAction_TransitiontoMod( cast_state_t *cs, char *params ) ;
 qboolean AICast_ScriptAction_AchievementGeneric( cast_state_t *cs, char *params );
 qboolean AICast_ScriptAction_EndGame( cast_state_t *cs, char *params );			//----(SA)	added
 qboolean AICast_ScriptAction_Announce( cast_state_t *cs, char *params );		
@@ -326,6 +327,24 @@ static const cast_achievementDef_t ACH_NIGHTMARE             = { "ACH_NIGHTMARE"
 
 static const cast_achievementDef_t ACH_ETBONUS               = { "ACH_ETBONUS",               Ach_CanAward_ETBonusChallengeAny };
 
+static const cast_achievementDef_t ACH_EE_COMPLETED         = { "ACH_EE_COMPLETED",         NULL };
+static const cast_achievementDef_t ACH_EE_COMPLETED_HARD    = { "ACH_EE_COMPLETED_HARD",         NULL };
+static const cast_achievementDef_t ACH_EE_SECRETS           = { "ACH_EE_SECRETS",         NULL };
+static const cast_achievementDef_t ACH_EE_MOMMY             = { "ACH_EE_MOMMY",         NULL };
+static const cast_achievementDef_t ACH_EE_MERCS             = { "ACH_EE_MERCS",         NULL };
+static const cast_achievementDef_t ACH_EE_CORPS             = { "ACH_EE_CORPS",         NULL };
+static const cast_achievementDef_t ACH_EE_GREN              = { "ACH_EE_GREN",         NULL };
+static const cast_achievementDef_t ACH_EE_CHALLENGE         = { "ACH_EE_CHALLENGE",         NULL };
+static const cast_achievementDef_t ACH_EE_MUMMY             = { "ACH_EE_MUMMY",         NULL };
+static const cast_achievementDef_t ACH_EE_MAD               = { "ACH_EE_MAD",         NULL };
+static const cast_achievementDef_t ACH_EE_INF               = { "ACH_EE_INF",         NULL };
+static const cast_achievementDef_t ACH_EE_SURV              = { "ACH_EE_SURV",         NULL };
+static const cast_achievementDef_t ACH_EE_SURV_SPECIAL      = { "ACH_EE_SURV_SPECIAL",         NULL };
+static const cast_achievementDef_t ACH_EE_SURV_PRIEST       = { "ACH_EE_SURV_PRIEST",         NULL };
+static const cast_achievementDef_t ACH_EE_SURV_DOG          = { "ACH_EE_SURV_DOG",         NULL };
+
+
+
 // these are the actions that each event can call
 cast_script_stack_action_t scriptActions[] =
 	{
@@ -396,6 +415,7 @@ cast_script_stack_action_t scriptActions[] =
 		{"unmount", AICast_ScriptAction_Unmount, NULL},
 		{"savepersistant", AICast_ScriptAction_SavePersistant, NULL},
 		{"changelevel", AICast_ScriptAction_ChangeLevel, NULL},
+	    {"transitiontomod", AICast_ScriptAction_TransitiontoMod },
 		{"endgame", AICast_ScriptAction_EndGame, NULL}, //----(SA)    added
 		{"announce", AICast_ScriptAction_Announce, NULL},
 		{"teleport", AICast_ScriptAction_Teleport, NULL}, //----(SA)    added
@@ -599,6 +619,25 @@ cast_script_stack_action_t scriptActions[] =
 		{"achievement_VENDETTA2_7", AICast_ScriptAction_AchievementGeneric, NULL},
 		{"achievement_VENDETTA2_8", AICast_ScriptAction_AchievementGeneric, NULL},
 		{"achievement_VENDETTA2_9", AICast_ScriptAction_AchievementGeneric, NULL},
+
+
+		{"achievement_eeGame", AICast_ScriptAction_AchievementGeneric, &ACH_EE_COMPLETED},
+	    {"achievement_eeSkill", AICast_ScriptAction_AchievementGeneric, &ACH_EE_COMPLETED_HARD},
+		{"achievement_eeSecrets", AICast_ScriptAction_AchievementGeneric, &ACH_EE_SECRETS},
+		{"achievement_eeAhmed", AICast_ScriptAction_AchievementGeneric, &ACH_EE_MOMMY},
+		{"achievement_eeMerc", AICast_ScriptAction_AchievementGeneric, &ACH_EE_MERCS},
+		{"achievement_eeCorps", AICast_ScriptAction_AchievementGeneric, &ACH_EE_CORPS},
+		{"achievement_eeGren", AICast_ScriptAction_AchievementGeneric, &ACH_EE_GREN},
+		{"achievement_eeChallenge", AICast_ScriptAction_AchievementGeneric, &ACH_EE_CHALLENGE},
+		{"achievement_eeTraps", AICast_ScriptAction_AchievementGeneric, &ACH_EE_MUMMY},
+		{"achievement_eeLeet", AICast_ScriptAction_AchievementGeneric, &ACH_EE_MAD},
+		{"achievement_eeStealth", AICast_ScriptAction_AchievementGeneric, &ACH_EE_INF},
+		{"achievement_eeSurv", AICast_ScriptAction_AchievementGeneric, &ACH_EE_SURV},
+		{"achievement_eeSurvSpecial", AICast_ScriptAction_AchievementGeneric, &ACH_EE_SURV_SPECIAL},
+		{"achievement_eeSurvPriest", AICast_ScriptAction_AchievementGeneric, &ACH_EE_SURV_PRIEST},
+		{"achievement_eeSurvShepherd", AICast_ScriptAction_AchievementGeneric, &ACH_EE_SURV_DOG},
+
+
 		{NULL, 0, NULL}};
 
 qboolean AICast_EventMatch_StringEqual( cast_script_event_t *event, char *eventParm );

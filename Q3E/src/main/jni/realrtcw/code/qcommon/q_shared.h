@@ -1011,11 +1011,12 @@ SAVE
 	17 - (SA) rats, changed fog.
 	18 - TTimo targetdeath fix
 	19 - RealRTCW Save
+	20 - RealRTCW 5.44 - venom pre-spin + slow-mo
 
 ==============================================================
 */
 
-#define SAVE_VERSION    19
+#define SAVE_VERSION    20
 #define SAVE_INFOSTRING_LENGTH  256
 
 
@@ -1538,6 +1539,8 @@ typedef struct playerState_s {
 	printLabel_t scriptAccumLabel;
 
 	int weaponUpgraded[MAX_WEAPONS]; // 0 = not upgraded, 1 = upgraded
+
+	qboolean simpleZoomed;               // networked mirror of cg.simpleZoomed, so spectators/followers see it too
 
 } playerState_t;
 

@@ -81,6 +81,11 @@ extern unsigned char s_entityTalkAmplitude[MAX_CLIENTS];
 
 #define THIRD_PERSON_THRESHOLD_SQ (48.0f*48.0f)
 
+// extra loop slots past MAX_GENTITIES for non-entity ambient sources (e.g. .sps speakers).
+// AddLoopingSound treats a negative entityNum as ambient slot -(entityNum)-1 -> MAX_GENTITIES+slot.
+// Slot 0 is reserved for pre-existing -1 callers (cg_localents.c/cg_players.c); others use distinct slots.
+#define MAX_AMBIENT_LOOPS 257
+
 typedef struct loopSound_s {
 	vec3_t		origin;
 	vec3_t		velocity;
@@ -136,6 +141,7 @@ typedef struct
 	void (*Shutdown)(void);
 	void (*StartSound)( vec3_t origin, int entnum, int entchannel, sfxHandle_t sfx );
 	void (*StartSoundEx)( vec3_t origin, int entnum, int entchannel, sfxHandle_t sfx, int flags );
+	void (*StartSoundVControl)( vec3_t origin, int entnum, int entchannel, sfxHandle_t sfx, int volume );
 	void (*StartLocalSound)( sfxHandle_t sfx, int channelNum );
 	void (*StartBackgroundTrack)( const char *intro, const char *loop );
 	void (*StopBackgroundTrack)( void );
@@ -295,11 +301,6 @@ qboolean S_AL_Init( soundInterface_t *si );
 #ifdef idppc_altivec
 void S_PaintChannelFrom16_altivec( portable_samplepair_t paintbuffer[PAINTBUFFER_SIZE], int snd_vol, channel_t *ch, const sfx_t *sc, int count, int sampleOffset, int bufferOffset );
 #endif
-
-static char s_bgIntro[MAX_QPATH];
-static char s_bgLoop[MAX_QPATH];
-
-static qboolean s_cinematicMute = qfalse;
 
 void S_RestartBackgroundTrack( void ) ;
 void S_SetCinematicMute( qboolean mute ) ;

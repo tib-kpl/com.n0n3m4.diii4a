@@ -36,6 +36,11 @@ cvar_t *s_muteWhenUnfocused;
 
 static soundInterface_t si;
 
+static char s_bgIntro[MAX_QPATH];
+static char s_bgLoop[MAX_QPATH];
+
+static qboolean s_cinematicMute = qfalse;
+
 /*
 =================
 S_ValidateInterface
@@ -46,6 +51,7 @@ static qboolean S_ValidSoundInterface( soundInterface_t *si )
 	if( !si->Shutdown ) return qfalse;
 	if( !si->StartSound ) return qfalse;
 	if( !si->StartSoundEx ) return qfalse;
+	if( !si->StartSoundVControl ) return qfalse;
 	if( !si->StartLocalSound ) return qfalse;
 	if( !si->StartBackgroundTrack ) return qfalse;
 	if( !si->StopBackgroundTrack ) return qfalse;
@@ -108,6 +114,18 @@ void S_StartSoundEx( vec3_t origin, int entnum, int entchannel, sfxHandle_t sfx,
 {
 	if( si.StartSoundEx ) {
 		si.StartSoundEx( origin, entnum, entchannel, sfx, flags );
+	}
+}
+
+/*
+=================
+S_StartSoundVControl
+=================
+*/
+void S_StartSoundVControl( vec3_t origin, int entnum, int entchannel, sfxHandle_t sfx, int volume )
+{
+	if( si.StartSoundVControl ) {
+		si.StartSoundVControl( origin, entnum, entchannel, sfx, volume );
 	}
 }
 

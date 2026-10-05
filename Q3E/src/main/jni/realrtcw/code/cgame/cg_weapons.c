@@ -1515,24 +1515,40 @@ static qboolean CG_RW_ParseClient( int handle, weaponInfo_t *weaponInfo, int wea
 			weaponInfo->handsModel = trap_R_RegisterModel(filename);
 
 			char base[128], map[128];
+			char smartSkin[128];
 			char handsskin[128], upgradedSkin[128], upgradedMapSkin[128];
 
 			memset(base, 0, sizeof(base));
 			memset(map, 0, sizeof(map));
+			memset(smartSkin, 0, sizeof(smartSkin));
+
 			COM_StripExtension(filename, base, sizeof(base));
 			trap_Cvar_VariableStringBuffer("mapname", map, sizeof(map));
 
-			// Map-specific hands skin
-			Com_sprintf(handsskin, sizeof(handsskin), "%s_%s.skin", base, map);
-			weaponInfo->handsSkin = trap_R_RegisterSkin(handsskin);
+			Com_sprintf(smartSkin, sizeof(smartSkin), "%s.smartskin", base);
 
-			// Generic upgraded skin
-			Com_sprintf(upgradedSkin, sizeof(upgradedSkin), "%s_upgraded.skin", base);
-			weaponInfo->upgradedSkin = trap_R_RegisterSkin(upgradedSkin);
+			weaponInfo->handsSkin = trap_R_RegisterSmartSkin(smartSkin, map, qfalse);
+			weaponInfo->upgradedSkin = trap_R_RegisterSmartSkin(smartSkin, map, qtrue);
+			weaponInfo->upgradedMapSkin = 0;
 
-			// Map-specific upgraded skin
-			Com_sprintf(upgradedMapSkin, sizeof(upgradedMapSkin), "%s_upgraded_%s.skin", base, map);
-			weaponInfo->upgradedMapSkin = trap_R_RegisterSkin(upgradedMapSkin);
+			// Legacy fallback
+			if (!weaponInfo->handsSkin)
+			{
+				Com_sprintf(handsskin, sizeof(handsskin), "%s_%s.skin", base, map);
+				weaponInfo->handsSkin = trap_R_RegisterSkin(handsskin);
+			}
+
+			if (!weaponInfo->upgradedSkin)
+			{
+				Com_sprintf(upgradedMapSkin, sizeof(upgradedMapSkin), "%s_upgraded_%s.skin", base, map);
+				weaponInfo->upgradedSkin = trap_R_RegisterSkin(upgradedMapSkin);
+
+				if (!weaponInfo->upgradedSkin)
+				{
+					Com_sprintf(upgradedSkin, sizeof(upgradedSkin), "%s_upgraded.skin", base);
+					weaponInfo->upgradedSkin = trap_R_RegisterSkin(upgradedSkin);
+				}
+			}
 		} else if ( !Q_stricmp( token.string, "flashDlightColor" ) ) {
 			if ( !PC_Vec_Parse( handle, &weaponInfo->flashDlightColor ) ) {
 				return CG_RW_ParseError( handle, "expected flashDlightColor as r g b" );
@@ -1879,6 +1895,7 @@ void CG_RegisterWeapon( int weaponNum, qboolean force ) {
 	}
 
 }
+
 /*
 =================
 CG_RegisterItemVisuals
@@ -2349,7 +2366,8 @@ static float CG_VenomSpinAngle( centity_t *cent ) {
 
 	firing = (qboolean)( cent->currentState.eFlags & EF_FIRING );
 
-	if ( cg.snap->ps.weaponstate != WEAPON_FIRING ) { // (SA) this seems better
+	// WEAPON_VENOM_REST: barrels pre-spun via simple zoom, holding at speed without firing
+	if ( cg.snap->ps.weaponstate != WEAPON_FIRING && cg.snap->ps.weaponstate != WEAPON_VENOM_REST ) { // (SA) this seems better
 		firing = qfalse;
 	}
 
@@ -3350,6 +3368,10 @@ void CG_AddPlayerWeapon( refEntity_t *parent, playerState_t *ps, centity_t *cent
 			}
 			// end spinning
 
+			// knife's off-hand model is cosmetic only; hide it while holding a melee prop (chair)
+			if ( weaponNum == WP_KNIFE && i == W_PART_2 && ( ps->eFlags & EF_MELEE_ACTIVE ) ) {
+				barrel.hModel = 0;
+			}
 
 			if ( barrel.hModel ) {
 				if ( i == W_PART_1 ) {
@@ -4547,6 +4569,8 @@ qboolean CG_WeaponSupportsSimpleZoom( int weap ) {
 void CG_ToggleSimpleZoom( void ) {
     cg.simpleZoomed = !cg.simpleZoomed;
     cg.simpleZoomTime = cg.time;
+    // let the server know so spectators/followers see the same zoom
+    trap_SendClientCommand( va( "simplezoom %i", cg.simpleZoomed ) );
 }
 
 
@@ -4554,6 +4578,7 @@ void CG_ResetSimpleZoom( void ) {
     if ( cg.simpleZoomed ) {
         cg.simpleZoomed = qfalse;
         cg.simpleZoomTime = cg.time;
+        trap_SendClientCommand( "simplezoom 0" );
     }
 }
 
@@ -5260,6 +5285,146 @@ void CG_OutOfAmmoChange( void ) {
 	// available weap using the regular selection scheme
 	CG_NextWeap( qtrue );
 
+}
+
+
+
+void CG_UpdateWeaponWheelSelection( float cursorx, float cursory ) {
+
+	int visibleWeapons[MAX_WEAPONS];
+	int numVisible = CG_CollectWeaponWheelWeapons( visibleWeapons, MAX_WEAPONS );
+
+	if ( numVisible <= 0 ) {
+		cg.weaponWheel.hoveredWeapon = 0;
+		return;
+	}
+
+	if ( numVisible == 1 ) {
+		cg.weaponWheel.hoveredWeapon = visibleWeapons[0];
+		cg.weaponWheel.latchedWeapon = visibleWeapons[0];
+		cg.weaponWheel.lastWeapon = visibleWeapons[0];
+		return;
+	}
+
+	float cx = SCREEN_WIDTH * 0.35f;
+	float cy = SCREEN_HEIGHT * 0.5f;
+
+	float dx, dy;
+	float len;
+
+	qboolean usingStick = qfalse;
+
+	if ( fabsf( cg.weaponWheel.stickX ) > 0.2f || fabsf( cg.weaponWheel.stickY ) > 0.2f ) {
+		usingStick = qtrue;
+	}
+
+	if ( usingStick ) {
+		dx = cg.weaponWheel.stickX;
+		dy = cg.weaponWheel.stickY;
+
+		len = sqrtf( dx * dx + dy * dy );
+
+		if ( len < 0.2f )
+		{
+
+			// Do NOT clear selection if we already latched one
+			if ( cg.weaponWheel.latchedWeapon > 0 )
+			{
+				cg.weaponWheel.hoveredWeapon = cg.weaponWheel.latchedWeapon;
+			}
+			else
+			{
+				cg.weaponWheel.hoveredWeapon = 0;
+			}
+
+			return;
+		}
+
+		dx /= len;
+		dy /= len;
+	} else {
+		dx = cursorx - cx;
+		dy = cursory - cy;
+
+		len = sqrtf( dx * dx + dy * dy );
+
+		if ( len < 30.0f ) {
+			cg.weaponWheel.hoveredWeapon = 0;
+			return;
+		}
+
+		dx /= len;
+		dy /= len;
+	}
+
+	int idx = 0;
+
+	if ( numVisible < 5 ) {
+
+		if ( numVisible == 2 ) {
+			idx = ( dx >= 0.0f ) ? 1 : 0;
+		} else if ( numVisible == 3 ) {
+			if ( dy < -0.45f ) {
+				idx = 0;
+			} else if ( dx >= 0.0f ) {
+				idx = 1;
+			} else {
+				idx = 2;
+			}
+		} else if ( numVisible == 4 ) {
+			if ( fabsf( dx ) > fabsf( dy ) ) {
+				idx = ( dx >= 0.0f ) ? 1 : 3;
+			} else {
+				idx = ( dy >= 0.0f ) ? 2 : 0;
+			}
+		}
+
+	} else {
+
+		float angle = atan2f( dy, dx );
+		angle += M_PI * 0.5f;
+
+		if ( angle < 0 ) {
+			angle += 2.0f * M_PI;
+		}
+		if ( angle >= 2.0f * M_PI ) {
+			angle -= 2.0f * M_PI;
+		}
+
+		float sectorSize = ( 2.0f * M_PI ) / (float)numVisible;
+		float angleOffset = sectorSize * 0.5f;
+
+		idx = (int)( ( angle + angleOffset ) / sectorSize );
+
+		if ( idx >= numVisible ) {
+			idx = 0;
+		}
+	}
+
+	int newWeapon = visibleWeapons[idx];
+
+	if ( usingStick )
+	{
+
+		// if switching too fast between neighbors, resist it
+		if ( cg.weaponWheel.lastWeapon != 0 &&
+			newWeapon != cg.weaponWheel.lastWeapon )
+		{
+
+			float threshold = 0.15f; // tune
+
+			if ( len < ( 0.4f + threshold ) )
+			{
+				newWeapon = cg.weaponWheel.lastWeapon;
+			}
+		}
+
+		cg.weaponWheel.latchedWeapon = newWeapon;
+		cg.weaponWheel.lastWeapon = newWeapon;
+	}
+
+	// Hover is always current frame
+	cg.weaponWheel.hoveredWeapon = newWeapon;
 }
 
 /*
@@ -7005,7 +7170,7 @@ void CG_UpdateAimAssist( void ) {
 
 
 	float coneDeg = 4.5f;
-	if (cg.zoomed)
+	if (cg.zoomed || cg.zoomedScope || cg.simpleZoomed)
 	{					
 		coneDeg = 6.0f; 
 	}

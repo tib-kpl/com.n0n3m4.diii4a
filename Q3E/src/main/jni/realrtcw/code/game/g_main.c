@@ -54,9 +54,6 @@ gclient_t g_clients[MAX_CLIENTS];
 
 int g_scriptGlobalAccumBuffer[G_MAX_SCRIPT_GLOBAL_ACCUM_BUFFERS];
 
-// Safe endgame fix
-qboolean g_endgameTriggered = qfalse;
-
 gentity_t       *g_camEnt = NULL;   //----(SA)	script camera
 
 // Rafael gameskill
@@ -152,6 +149,8 @@ vmCvar_t g_cvopsChargeTime;
 // jpw
 
 vmCvar_t g_playerStart;         // set when the player enters the game
+vmCvar_t g_checkpointReady;     // set once a real checkpoint has been saved for the current level
+vmCvar_t g_levelSelectPending;  // mirrors g_level_was_selected until a checkpoint actually saves
 
 vmCvar_t g_localTeamPref;
 
@@ -175,6 +174,7 @@ vmCvar_t g_endmapbonus;
 vmCvar_t g_randomweapons;
 vmCvar_t g_realism;
 vmCvar_t g_regen;
+vmCvar_t g_overheal;
 vmCvar_t g_flushItems;	// items land depending on the slope thy're on
 vmCvar_t g_midgame;
 vmCvar_t g_vanilla_guns;
@@ -185,10 +185,23 @@ vmCvar_t g_aiCollision;
 vmCvar_t g_specialWaves;
 vmCvar_t g_level_was_selected;
 vmCvar_t g_survivalAiHealthCap;
+vmCvar_t g_survivalDifficulty;
+vmCvar_t g_survivalBosses;
 
 vmCvar_t g_playerSurvivalClass;    
 
+vmCvar_t g_ee_skinEliteGuard;
+vmCvar_t g_ee_skinMercenary;
+vmCvar_t g_ee_skinZombie;
+vmCvar_t g_ee_earlyWeapons;
+vmCvar_t g_ee_endgameSwitch;
+vmCvar_t g_ee_progress;
+vmCvar_t g_ee_svAgent1;
+
 vmCvar_t g_mapname;
+
+vmCvar_t g_weaponWheelDilation;
+vmCvar_t g_weaponWheelDilationRamp;
 
 cvarTable_t gameCvarTable[] = {
 	// don't override the cheat state set by the system
@@ -219,6 +232,7 @@ cvarTable_t gameCvarTable[] = {
 	{&g_randomweapons, "g_randomweapons", "0", CVAR_ARCHIVE | CVAR_LATCH, 0, qfalse},
 	{&g_realism, "g_realism", "0", CVAR_ARCHIVE | CVAR_LATCH, 0, qfalse},
 	{&g_regen, "g_regen", "0", CVAR_ARCHIVE | CVAR_LATCH, 0, qfalse},
+	{&g_overheal, "g_overheal", "0", CVAR_SERVERINFO | CVAR_ARCHIVE | CVAR_LATCH, 0, qfalse},
 	{&g_midgame, "g_midgame", "0", CVAR_ARCHIVE | CVAR_LATCH, 0, qfalse},
 	{&g_vanilla_guns, "g_vanilla_guns", "0", CVAR_ARCHIVE | CVAR_LATCH, 0, qfalse},
 	{&g_dlc1, "g_dlc1", "0", CVAR_ARCHIVE | CVAR_LATCH, 0, qfalse},
@@ -226,6 +240,19 @@ cvarTable_t gameCvarTable[] = {
 	{&g_noobTube, "g_noobTube", "0", CVAR_ARCHIVE, 0, qfalse},
 	{&g_aiCollision, "g_aiCollision", "1", CVAR_ARCHIVE | CVAR_LATCH, 0, qfalse},
 	{&g_level_was_selected, "g_level_was_selected", "0", 0, 0, qfalse},
+	{&g_survivalDifficulty, "g_survivalDifficulty", "0", CVAR_ARCHIVE, 0, qfalse},
+	{&g_survivalBosses, "g_survivalBosses", "1", CVAR_ARCHIVE, 0, qfalse},
+
+	{&g_weaponWheelDilation, "g_weaponWheelDilation", "0.35", CVAR_ARCHIVE, 0, qfalse},
+	{&g_weaponWheelDilationRamp, "g_weaponWheelDilationRamp", "150", CVAR_ARCHIVE, 0, qfalse},
+
+	{&g_ee_skinEliteGuard, "g_ee_skinEliteGuard", "0", CVAR_ARCHIVE, 0, qfalse},
+	{&g_ee_skinMercenary, "g_ee_skinMercenary", "0", CVAR_ARCHIVE, 0, qfalse},
+	{&g_ee_skinZombie, "g_ee_skinZombie", "0", CVAR_ARCHIVE, 0, qfalse},
+	{&g_ee_earlyWeapons, "g_ee_earlyWeapons", "1", CVAR_ARCHIVE, 0, qfalse},
+	{&g_ee_endgameSwitch, "g_ee_endgameSwitch", "0", CVAR_ARCHIVE, 0, qfalse},
+	{&g_ee_progress, "g_ee_progress", "0", CVAR_ARCHIVE, 0, qfalse},
+	{&g_ee_svAgent1, "g_ee_svAgent1", "1", CVAR_ARCHIVE, 0, qfalse},
 
 	{&g_playerSurvivalClass, "g_playersurvivalclass", "0", CVAR_ARCHIVE | CVAR_LATCH, 0, qfalse},
 	{&g_specialWaves, "g_specialwaves", "1", CVAR_ARCHIVE | CVAR_LATCH, 0, qfalse},
@@ -251,6 +278,8 @@ cvarTable_t gameCvarTable[] = {
 	// jpw
 
 	{&g_playerStart, "g_playerStart", "0", CVAR_ROM, 0, qfalse},
+	{&g_checkpointReady, "g_checkpointReady", "0", CVAR_ROM, 0, qfalse},
+	{&g_levelSelectPending, "g_levelSelectPending", "0", CVAR_ROM, 0, qfalse},
 
 	{&g_maxclients, "sv_maxclients", "8", CVAR_SERVERINFO | CVAR_LATCH | CVAR_ARCHIVE, 0, qfalse},
 	{&g_maxGameClients, "g_maxGameClients", "0", CVAR_SERVERINFO | CVAR_LATCH | CVAR_ARCHIVE, 0, qfalse},
@@ -466,16 +495,6 @@ qboolean G_canStealthStab( int aiChar ) {
 	}
 	return qfalse;
 }
-
-/*
-==============
-G_EndGame
-==============
-*/
-void G_EndGame( void ) {
-	trap_Endgame();
-}
-
 
 #define CH_KNIFE_DIST       48  // from g_weapon.c
 #define CH_LADDER_DIST      100
@@ -705,6 +724,12 @@ void G_CheckForCursorHints( gentity_t *ent ) {
 			}
 		}
 
+		// early check for enemy team hint, so it wouldn't overlay stealth knife hint
+		if ( traceEnt->aiTeam == AITEAM_NAZI || traceEnt->aiTeam == AITEAM_MONSTER ) {
+			hintType = HINT_PLYR_ENEMY;
+			hintDist = CH_ENEMY_DIST; 
+		}
+
 		if ( ent->s.weapon == WP_KNIFE ) {
 			vec3_t pforward, eforward;
 			qboolean canKnife = qfalse;
@@ -741,10 +766,6 @@ void G_CheckForCursorHints( gentity_t *ent ) {
    		        hintType = HINT_PLYR_FRIEND;
 			    hintDist = CH_FRIENDLY_DIST; 
 			}
-		} else if ( traceEnt->aiTeam == AITEAM_NAZI || traceEnt->aiTeam == AITEAM_MONSTER )
-		{
-   		        hintType = HINT_PLYR_ENEMY;
-			    hintDist = CH_ENEMY_DIST; 
 		}
 
 	}
@@ -1243,14 +1264,10 @@ void G_UpdateCvars( void ) {
 						// now let it think
 						AICast_CastScriptThink();
 
-						// if we are not watching a cutscene, save the game
-						if (!g_entities[0].client->cameraPortal)
+						// deferred: playerstart's own script (loadout grant) hasn't run yet, it runs later this frame in AICast_StartServerFrame()
+						if (g_gametype.integer != GT_SURVIVAL)
 						{
-							if (g_gametype.integer != GT_SURVIVAL)
-							{
-								G_SaveGame(NULL);
-								G_SaveGame("lastcheckpoint");
-							}
+							level.pendingCheckpointSave = qtrue;
 						}
 						trap_Cvar_Set( "cg_norender", "0" );  // camera has started, render 'on'
 						trap_Cvar_Set( "g_playerstart", "0" ); // reset calling of "playerstart" from script
@@ -1400,6 +1417,10 @@ void G_InitGame( int levelTime, int randomSeed, int restart ) {
 	memset( &level, 0, sizeof( level ) );
 	level.time = levelTime;
 	level.startTime = levelTime;
+
+	level.timeDilation = 1.0f;
+	level.timeDilationTarget = 1.0f;
+	trap_SetConfigstring( CS_TIMEDILATION, "1.000000" );
 
 	level.numSecrets = 0;   //----(SA)	added
 
@@ -2355,39 +2376,79 @@ void CheckReloadStatus( void ) {
 		if ( level.reloadDelayTime ) {
 			if ( level.reloadDelayTime < level.time ) {
 
-				if ( g_reloading.integer == RELOAD_NEXTMAP_WAITING ) {
-					trap_Cvar_Set( "g_reloading", va( "%d", RELOAD_NEXTMAP ) ); // set so sv_map_f will know it's okay to start a map
-				  if ( g_gametype.integer == GT_SINGLE_PLAYER ) {
-					if ( g_cheats.integer ) {
-						trap_SendConsoleCommand( EXEC_APPEND, va( "spdevmap %s\n", level.nextMap ) );
-					} else {
-						trap_SendConsoleCommand( EXEC_APPEND, va( "spmap %s\n", level.nextMap ) );
-					} 
-				  } else if ( g_gametype.integer == GT_GOTHIC ) {
-			        if ( g_cheats.integer ) {
-						trap_SendConsoleCommand( EXEC_APPEND, va( "gtdevmap %s\n", level.nextMap ) );
-					} else {
-						trap_SendConsoleCommand( EXEC_APPEND, va( "gtmap %s\n", level.nextMap ) );
-					} 
-				  } else if ( g_gametype.integer == GT_SURVIVAL ) {
-			        if ( g_cheats.integer ) {
-						trap_SendConsoleCommand( EXEC_APPEND, va( "svdevmap %s\n", level.nextMap ) );
-					} else {
-						trap_SendConsoleCommand( EXEC_APPEND, va( "svmap %s\n", level.nextMap ) );
-					} 
-				  }
-				}
-				else if (g_reloading.integer == RELOAD_ENDGAME)
+				if (g_reloading.integer == RELOAD_NEXTMAP_WAITING)
 				{
-					// defer endgame until it's safe
-					g_endgameTriggered = qtrue;
-					level.reloadDelayTime = 0;
-					trap_Cvar_Set("g_reloading", "0"); // prevent it from looping
+					trap_Cvar_Set("g_reloading", va("%d", RELOAD_NEXTMAP)); // set so sv_map_f will know it's okay to start a map
+
+					if (level.pendingFSGameChange)
+					{
+						trap_Cvar_Set("fs_game", level.nextFSGame);
+					}
+
+					if (g_gametype.integer == GT_SINGLE_PLAYER)
+					{
+						if (g_cheats.integer)
+						{
+							trap_SendConsoleCommand(EXEC_APPEND, va("spdevmap %s\n", level.nextMap));
+						}
+						else
+						{
+							trap_SendConsoleCommand(EXEC_APPEND, va("spmap %s\n", level.nextMap));
+						}
+					}
+					else if (g_gametype.integer == GT_GOTHIC)
+					{
+						if (g_cheats.integer)
+						{
+							trap_SendConsoleCommand(EXEC_APPEND, va("gtdevmap %s\n", level.nextMap));
+						}
+						else
+						{
+							trap_SendConsoleCommand(EXEC_APPEND, va("gtmap %s\n", level.nextMap));
+						}
+					}
+					else if (g_gametype.integer == GT_SURVIVAL)
+					{
+						if (g_cheats.integer)
+						{
+							trap_SendConsoleCommand(EXEC_APPEND, va("svdevmap %s\n", level.nextMap));
+						}
+						else
+						{
+							trap_SendConsoleCommand(EXEC_APPEND, va("svmap %s\n", level.nextMap));
+						}
+					}
+
+					level.pendingFSGameChange = qfalse;
+					level.nextFSGame[0] = '\0';
+				}
+				else if ( g_reloading.integer == RELOAD_ENDGAME )
+				{
+					// clear any staged end-sequence effects from bare "changelevel"
+					trap_SetConfigstring( CS_SCREENFADE, "" );
+					trap_SetConfigstring( CS_MUSIC_QUEUE, "" );
+					trap_SendServerCommand( -1, "snd_fade 1 0" );
+
+					trap_Cvar_Set( "g_reloading", "0" );
+					trap_SendConsoleCommand( EXEC_APPEND, "disconnect\n" );
 				}
 				else
 				{
-					// set the loadgame flag, and restart the server
-					trap_Cvar_Set( "savegame_loading", "2" ); // 2 means it's a restart, so stop rendering until we are loaded
+					// only reload the checkpoint if this level actually reached one; otherwise it's stale from a different map
+					if ( trap_Cvar_VariableIntegerValue( "g_checkpointReady" ) )
+					{
+						trap_Cvar_Set( "savegame_loading", "2" ); // 2 means it's a restart, so stop rendering until we are loaded
+					}
+					else
+					{
+						trap_Cvar_Set( "savegame_loading", "0" );
+
+						// restore it so playerstart grants the level-select loadout again on this restart
+						if ( trap_Cvar_VariableIntegerValue( "g_levelSelectPending" ) )
+						{
+							trap_Cvar_Set( "g_level_was_selected", "1" );
+						}
+					}
 					trap_SendConsoleCommand( EXEC_INSERT, "map_restart\n" );
 				}
 
@@ -2554,6 +2615,66 @@ void G_RunEntity( gentity_t* ent, int msec ) {
 
 /*
 ================
+G_UpdateWorldDilation
+
+Single-player and Survival only: while any connected client has its weapon wheel open, ease the
+world time dilation factor down so the server tick loop (SV_Frame) throttles
+how often ticks fire in real time. Each individual tick is untouched (still
+the normal frameMsec-sized game-time step), so nothing about per-tick entity
+math (e.g. mg42_think's hardcoded windows) is affected -- only tick frequency
+in real time changes.
+================
+*/
+static void G_UpdateWorldDilation( void ) {
+	int i;
+	qboolean anyWheelOpen = qfalse;
+	float target, rampMsec, msec, step;
+
+	if ( g_gametype.integer != GT_SINGLE_PLAYER && g_gametype.integer != GT_SURVIVAL ) {
+		return;
+	}
+
+	for ( i = 0; i < level.maxclients; i++ ) {
+		if ( level.clients[i].pers.connected == CON_CONNECTED &&
+			 g_entities[i].client && g_entities[i].client->pers.weaponWheelOpen ) {
+			anyWheelOpen = qtrue;
+			break;
+		}
+	}
+
+	target = anyWheelOpen ? g_weaponWheelDilation.value : 1.0f;
+	level.timeDilationTarget = target;
+
+	rampMsec = g_weaponWheelDilationRamp.value;
+	if ( rampMsec < 1.0f ) {
+		rampMsec = 1.0f;
+	}
+
+	// linear ease over ~rampMsec of game time toward target
+	msec = (float)( level.time - level.previousTime );
+	step = ( msec / rampMsec ) * fabs( 1.0f - g_weaponWheelDilation.value );
+
+	if ( level.timeDilation < target ) {
+		level.timeDilation += step;
+		if ( level.timeDilation > target ) {
+			level.timeDilation = target;
+		}
+	} else if ( level.timeDilation > target ) {
+		level.timeDilation -= step;
+		if ( level.timeDilation < target ) {
+			level.timeDilation = target;
+		}
+	}
+
+	{
+		char cs[32];
+		Com_sprintf( cs, sizeof( cs ), "%f", level.timeDilation );
+		trap_SetConfigstring( CS_TIMEDILATION, cs ); // no-op if unchanged, SV_SetConfigstring dedups
+	}
+}
+
+/*
+================
 G_RunFrame
 
 Advances the non-player objects in the world
@@ -2586,6 +2707,8 @@ void G_RunFrame( int levelTime ) {
 
 	// get any cvar changes
 	G_UpdateCvars();
+
+	G_UpdateWorldDilation();
 
 	for ( i = 0; i < level.num_entities; i++ ) {
 		g_entities[i].runthisframe = qfalse;
@@ -2714,6 +2837,16 @@ void G_RunFrame( int levelTime ) {
 		AICast_TickSurvivalWave();
 	}
 
+	// playerstart's script has now run (see AICast_StartServerFrame above), safe to checkpoint
+	if ( level.pendingCheckpointSave && !g_entities[0].client->cameraPortal )
+	{
+		level.pendingCheckpointSave = qfalse;
+		G_SaveGame( NULL );
+		G_SaveGame( "lastcheckpoint" );
+		trap_Cvar_Set( "g_checkpointReady", "1" );
+		trap_Cvar_Set( "g_levelSelectPending", "0" );
+	}
+
 	// perform final fixups on the players
 	ent = &g_entities[0];
 	for ( i = 0 ; i < level.maxclients ; i++, ent++ ) {
@@ -2747,10 +2880,22 @@ void G_RunFrame( int levelTime ) {
 
 	// Ridah, check if we are reloading, and times have expired
 	CheckReloadStatus();
+}
 
-	if (g_endgameTriggered)
-	{
-		g_endgameTriggered = qfalse;
-		G_EndGame(); // this will now call trap_Endgame() safely
+/*
+==============
+G_ScheduleEndgame
+==============
+*/
+void G_ScheduleEndgame( int delay ) {
+	if ( g_reloading.integer ) {
+		return;
 	}
+
+	if ( delay < 0 ) {
+		delay = 0;
+	}
+
+	trap_Cvar_Set( "g_reloading", va( "%d", RELOAD_ENDGAME ) );
+	level.reloadDelayTime = level.time + delay;
 }
