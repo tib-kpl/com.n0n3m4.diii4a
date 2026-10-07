@@ -309,6 +309,11 @@ void FBO_Init( void )
 	ARB_InitPrograms();
 
 	FBO_Bind( tr.mainFbo );
+
+	// the color image was allocated without data: clear it, or a frame presented before anything
+	// is drawn (renderer restart during a level load) shows leftover GPU memory as grey noise
+	qglClearColor( 0, 0, 0, 1 );
+	qglClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT );
 }
 
 
