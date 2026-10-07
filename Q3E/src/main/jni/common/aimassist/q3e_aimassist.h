@@ -16,12 +16,19 @@
  *   // then apply delta instead of the original input
  *
  * Angles follow the Quake convention: yaw counterclockwise from +X, pitch positive looking down.
+ *
+ * Every 10 seconds of play with the assist on, a line goes to stdout (stdout.txt in the game folder):
+ * the frames with look input and enemies given, those with one in the assist zone, with one visible
+ * there, and the look speed, so that a game where it does nothing can be told why.
  */
 #ifndef _Q3E_AIMASSIST_H
 #define _Q3E_AIMASSIST_H
 
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
 #define Q3E_AIMASSIST_MAX_TARGETS 64
 
@@ -41,22 +48,26 @@ typedef int (*q3eAimAssistTargets_t)(float eye[3], float viewDelta[2], float (*t
 typedef struct
 {
     float slowdown; // look slowdown on target, 0..1
-    float magnet; // share of the pull toward the target
+    float magnet; // share of the angle to the target pulled per frame, at most turnRate
     float turnRate; // max pull, degrees per second
 } q3e_aimAssistParms_t;
 
 static const q3e_aimAssistParms_t q3e_aimAssistLevels[4] = {
     { 0.0f, 0.0f, 0.0f },
-    { 0.35f, 0.25f, 90.0f }, // light
-    { 0.50f, 0.40f, 140.0f }, // medium
-    { 0.65f, 0.60f, 200.0f }, // strong
+    { 0.35f, 0.30f, 120.0f }, // light
+    { 0.55f, 0.50f, 200.0f }, // medium
+    { 0.70f, 0.70f, 300.0f }, // strong
 };
 
-#define Q3E_AIMASSIST_BREAKOUT_SPEED 360.0f // degrees per second of look input: above it the player turns, no assist
+#define Q3E_AIMASSIST_BREAKOUT_SPEED 540.0f // degrees per second of look input: above it the player turns, no assist
 #define Q3E_AIMASSIST_MAX_DISTANCE 4096.0f
-#define Q3E_AIMASSIST_CONE_SCALE 2.5f // the assist zone is this many body radii around the aim point
-#define Q3E_AIMASSIST_MIN_CONE 1.5f // degrees
-#define Q3E_AIMASSIST_MAX_CONE 10.0f // degrees
+#define Q3E_AIMASSIST_CONE_SCALE 6.0f // the assist zone is this many body radii around the aim point
+#define Q3E_AIMASSIST_MIN_CONE 8.0f // degrees: far enemies are a few degrees wide, the zone must not be (Jedi Outcast: 2.5 did nothing)
+#define Q3E_AIMASSIST_MAX_CONE 15.0f // degrees
+#define Q3E_AIMASSIST_FRICTION_ZONE 0.4f // the slowdown is in this inner share of the zone, the pull in all of it
+#define Q3E_AIMASSIST_MIN_STRENGTH 0.25f // at the edge of the zone
+#define Q3E_AIMASSIST_MIN_SCALE 0.4f // slowest look on target, share of the input
+#define Q3E_AIMASSIST_REPORT_SECONDS 10
 
 static int Q3E_AimAssist_Level(void)
 {
@@ -67,6 +78,7 @@ static int Q3E_AimAssist_Level(void)
         level = env ? atoi(env) : 0;
         if(level < 0 || level > 3)
             level = 0;
+        printf("Q3E aim assist: level %d\n", level);
     }
     return level;
 }
@@ -81,6 +93,35 @@ static float Q3E_AimAssist_Normalize180(float angle)
     return angle;
 }
 
+// what the assist did lately (one per engine library), see the top of this file
+static struct
+{
+    time_t since;
+    int frames; // with look input and enemies given
+    int enemies; // given in those frames
+    int inZone; // frames with an enemy in the assist zone
+    int visible; // ... and visible
+    float speed; // sum of the look speeds
+} q3e_aimAssistStats;
+
+static void Q3E_AimAssist_Report(void)
+{
+    time_t now = time(NULL);
+
+    if(!q3e_aimAssistStats.since)
+        q3e_aimAssistStats.since = now;
+    if(now - q3e_aimAssistStats.since < Q3E_AIMASSIST_REPORT_SECONDS)
+        return;
+    if(q3e_aimAssistStats.frames)
+    {
+        printf("Q3E aim assist: %d frames aiming, %.1f enemies given on average, %d with one in the zone, %d with it visible (assisted), look speed %.0f deg/s on average\n",
+               q3e_aimAssistStats.frames, (float)q3e_aimAssistStats.enemies / q3e_aimAssistStats.frames,
+               q3e_aimAssistStats.inZone, q3e_aimAssistStats.visible, q3e_aimAssistStats.speed / q3e_aimAssistStats.frames);
+    }
+    memset(&q3e_aimAssistStats, 0, sizeof(q3e_aimAssistStats));
+    q3e_aimAssistStats.since = now;
+}
+
 /*
  * aim: pitch, yaw before this frame's input; delta: this frame's input (pitch, yaw), changed in place.
  * Returns 1 when a target was found.
@@ -89,10 +130,12 @@ static int Q3E_AimAssist_Apply(const float eye[3], const float aim[2], float del
                                const q3e_aimTarget_t *targets, int numTargets, q3e_aimVisible_f visible, void *user)
 {
     const q3e_aimAssistParms_t *parms;
-    float inLen, speed, relief;
+    float inLen, speed, relief, escape;
     float bestErr[2] = { 0.0f, 0.0f };
     float bestStrength = 0.0f;
     float bestAngle = 1e9f;
+    float bestCone = 1.0f;
+    int inZone = 0;
     int i;
 
     int level = Q3E_AimAssist_Level();
@@ -104,6 +147,12 @@ static int Q3E_AimAssist_Apply(const float eye[3], const float aim[2], float del
     if(inLen <= 0.0f)
         return 0; // only while the player aims
     speed = inLen / dt;
+
+    Q3E_AimAssist_Report();
+    q3e_aimAssistStats.frames++;
+    q3e_aimAssistStats.enemies += numTargets;
+    q3e_aimAssistStats.speed += speed;
+
     if(speed >= Q3E_AIMASSIST_BREAKOUT_SPEED)
         return 0;
 
@@ -132,56 +181,64 @@ static int Q3E_AimAssist_Apply(const float eye[3], const float aim[2], float del
 
         if(angle >= cone || angle >= bestAngle)
             continue;
+        inZone = 1;
         if(visible && !visible(eye, t->origin, user))
             continue;
 
         bestAngle = angle;
-        bestStrength = 1.0f - angle / cone;
+        bestCone = cone;
+        bestStrength = Q3E_AIMASSIST_MIN_STRENGTH + (1.0f - Q3E_AIMASSIST_MIN_STRENGTH) * (1.0f - angle / cone);
         bestErr[0] = errPitch;
         bestErr[1] = errYaw;
     }
 
+    q3e_aimAssistStats.inZone += inZone;
     if(bestStrength <= 0.0f)
         return 0;
+    q3e_aimAssistStats.visible++;
 
-    // weaker as the input nears a fast turn
-    relief = 1.0f - speed / Q3E_AIMASSIST_BREAKOUT_SPEED;
+    // weaker only as the input nears a fast turn
+    relief = speed / Q3E_AIMASSIST_BREAKOUT_SPEED;
+    relief = 1.0f - relief * relief;
 
     // moving away from the target fades the assist out
+    escape = 1.0f;
+    if(bestAngle > 0.001f)
     {
-        float escape = 1.0f;
-        if(bestAngle > 0.001f)
+        float align = (delta[0] * bestErr[0] + delta[1] * bestErr[1]) / (inLen * bestAngle); // -1 away .. +1 toward
+        if(align < 0.0f)
         {
-            float align = (delta[0] * bestErr[0] + delta[1] * bestErr[1]) / (inLen * bestAngle); // -1 away .. +1 toward
-            if(align < 0.0f)
-            {
-                escape = 1.0f + align / 0.35f;
-                if(escape < 0.0f)
-                    escape = 0.0f;
-            }
+            escape = 1.0f + align / 0.35f;
+            if(escape < 0.0f)
+                escape = 0.0f;
         }
-        if(escape <= 0.0f)
-            return 1;
+    }
+    if(escape <= 0.0f)
+        return 1;
 
-        // friction
-        {
-            float scale = 1.0f - parms->slowdown * bestStrength * escape * relief;
-            if(scale < 0.5f)
-                scale = 0.5f;
-            delta[0] *= scale;
-            delta[1] *= scale;
-        }
+    // friction, near the target only: slowing down the approach from the edge of the zone would feel like drag
+    {
+        float closeness = 1.0f - bestAngle / (bestCone * Q3E_AIMASSIST_FRICTION_ZONE);
+        float scale;
+        if(closeness < 0.0f)
+            closeness = 0.0f;
+        scale = 1.0f - parms->slowdown * closeness * escape * relief;
+        if(scale < Q3E_AIMASSIST_MIN_SCALE)
+            scale = Q3E_AIMASSIST_MIN_SCALE;
+        delta[0] *= scale;
+        delta[1] *= scale;
+    }
 
-        // magnet
-        if(bestAngle > 0.001f)
-        {
-            float step = parms->turnRate * dt;
-            if(step > bestAngle)
-                step = bestAngle;
-            step *= parms->magnet * bestStrength * escape * relief;
-            delta[0] += bestErr[0] / bestAngle * step;
-            delta[1] += bestErr[1] / bestAngle * step;
-        }
+    // magnet
+    if(bestAngle > 0.001f)
+    {
+        float step = bestAngle * parms->magnet;
+        float maxStep = parms->turnRate * dt;
+        if(step > maxStep)
+            step = maxStep;
+        step *= bestStrength * escape * relief;
+        delta[0] += bestErr[0] / bestAngle * step;
+        delta[1] += bestErr[1] / bestAngle * step;
     }
 
     return 1;
