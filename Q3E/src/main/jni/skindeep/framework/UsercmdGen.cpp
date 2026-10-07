@@ -510,11 +510,63 @@ void idUsercmdGenLocal::KeyMove( void ) {
 idUsercmdGenLocal::MouseMove
 =================
 */
+#ifdef __ANDROID__ // gamepad aim assist, level from the launcher's controller settings
+#include "aimassist/q3e_aimassist.h"
+
+// Q3E_AimAssistTargets of the game library, when it has one (framework/Common.cpp): the local player's eye,
+// view delta angles (pitch, yaw) and visible enemies (chest point and body radius); returns their number
+q3eAimAssistTargets_t q3e_aimAssistTargets = NULL;
+
+/*
+=================
+UsercmdGen_AimAssist
+
+Adjusts this command's look input (from the view angles before it) toward the player's enemies
+=================
+*/
+static void UsercmdGen_AimAssist( const idVec3 &before, idVec3 &viewangles ) {
+	q3e_aimTarget_t targets[Q3E_AIMASSIST_MAX_TARGETS];
+	float found[Q3E_AIMASSIST_MAX_TARGETS][4];
+	float eye[3], viewDelta[2], aim[2], delta[2];
+	int numTargets;
+
+	// the game is only safe to read from the main thread
+	if ( !Q3E_AimAssist_Level() || !q3e_aimAssistTargets || cvarSystem->GetCVarBool( "com_asyncInput" ) ) {
+		return;
+	}
+
+	numTargets = q3e_aimAssistTargets( eye, viewDelta, found, Q3E_AIMASSIST_MAX_TARGETS );
+	if ( numTargets <= 0 ) {
+		return;
+	}
+	for ( int i = 0; i < numTargets; i++ ) {
+		targets[i].origin[0] = found[i][0];
+		targets[i].origin[1] = found[i][1];
+		targets[i].origin[2] = found[i][2];
+		targets[i].radius = found[i][3];
+	}
+
+	aim[0] = before[PITCH] + viewDelta[0];
+	aim[1] = before[YAW] + viewDelta[1];
+	delta[0] = viewangles[PITCH] - before[PITCH];
+	delta[1] = viewangles[YAW] - before[YAW];
+
+	// the game has already kept the visible ones
+	if ( Q3E_AimAssist_Apply( eye, aim, delta, USERCMD_MSEC * 0.001f, targets, numTargets, NULL, NULL ) ) {
+		viewangles[PITCH] = before[PITCH] + delta[0];
+		viewangles[YAW] = before[YAW] + delta[1];
+	}
+}
+#endif
+
 void idUsercmdGenLocal::MouseMove( void ) {
 	float		mx, my, strafeMx, strafeMy;
 	static int	history[8][2];
 	static int	historyCounter;
 	int			i;
+#ifdef __ANDROID__
+	const idVec3	aimBefore = viewangles;
+#endif
 
 
 	// blendo eric: modify exceeding large mouse movement input check to use unsmoothed mouse accel instead of delta
@@ -614,6 +666,10 @@ void idUsercmdGenLocal::MouseMove( void ) {
 	}
 
 	viewangles[PITCH] += m_pitch.GetFloat() * my;
+
+#ifdef __ANDROID__
+	UsercmdGen_AimAssist( aimBefore, viewangles );
+#endif
 }
 
 /*

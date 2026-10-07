@@ -523,7 +523,7 @@
     <string name="right_joystick_sensitivity_summary">Right joystick emulate mouse sensitivity(default 1)</string>
     <string name="joystick_dpad">Joystick/DPad</string>
     <string name="aim_assist">Aim assist</string>
-    <string name="aim_assist_summary" formatted="false">%s. Slows the view down on an enemy near the crosshair and pulls it a little toward them while you aim (RTCW, Quake 3, Jedi Outcast, Jedi Academy, Urban Terror, ET: Legacy, OpenMoHAA, DOOM 3, Quake 4, Prey and their mods, Quake 1, Quake 2; RealRTCW and DOOM 3 BFG have their own, in their menus)</string>
+    <string name="aim_assist_summary" formatted="false">%s. Slows the view down on an enemy near the crosshair and pulls it a little toward them while you aim (RTCW, Quake 3, Jedi Outcast, Jedi Academy, Urban Terror, ET: Legacy, OpenMoHAA, DOOM 3, Quake 4, Prey and their mods, Quake 1, Quake 2, Skin Deep; RealRTCW and DOOM 3 BFG have their own, in their menus)</string>
     <string-array name="aim_assist_names">
         <item>Off</item>
         <item>Light</item>

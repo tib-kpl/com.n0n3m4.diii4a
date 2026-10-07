@@ -3042,6 +3042,11 @@ void idCommonLocal::Async( void ) {
 	}
 }
 
+#ifdef __ANDROID__ // gamepad aim assist (framework/UsercmdGen.cpp, common/aimassist/q3e_aimassist.h)
+typedef int (*q3eAimAssistTargets_t)(float eye[3], float viewDelta[2], float (*targets)[4], int maxTargets);
+extern q3eAimAssistTargets_t q3e_aimAssistTargets;
+#endif
+
 /*
 =================
 idCommonLocal::LoadGameDLLbyName
@@ -3161,6 +3166,10 @@ void idCommonLocal::LoadGameDLL( void ) {
 	game								= gameExport.game;
 	gameEdit							= gameExport.gameEdit;
 
+#ifdef __ANDROID__ // gamepad aim assist: optional in the game library
+	q3e_aimAssistTargets = (q3eAimAssistTargets_t) Sys_DLL_GetProcAddress( gameDLL, "Q3E_AimAssistTargets" );
+#endif
+
 #endif
 
 	// initialize the game object
@@ -3182,6 +3191,10 @@ void idCommonLocal::UnloadGameDLL( void ) {
 	}
 
 #ifdef __DOOM_DLL__
+
+#ifdef __ANDROID__
+	q3e_aimAssistTargets = NULL;
+#endif
 
 	if ( gameDLL ) {
 		Sys_DLL_Unload( gameDLL );
