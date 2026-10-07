@@ -171,11 +171,93 @@ IN_Update(void)
 /*
  * Move handling
  */
+#ifdef __ANDROID__ // gamepad aim assist, level from the launcher's controller settings
+#include "aimassist/q3e_aimassist.h"
+#include "../../game/header/game.h"
+
+/* from server/header/server.h, which clashes with the client's headers */
+extern game_export_t *ge;
+#define IN_AIMASSIST_SS_GAME 2 /* ss_game: the local server runs a game */
+#define IN_AIMASSIST_EDICT_NUM(n) ((edict_t *)((byte *)ge->edicts + ge->edict_size * (n)))
+
+static int
+IN_AimAssistVisible(const float eye[3], const float point[3], void *user)
+{
+	trace_t tr = CM_BoxTrace(eye, point, vec3_origin, vec3_origin, 0, MASK_OPAQUE);
+
+	return tr.fraction >= 1.0f;
+}
+
+/*
+ * Adjusts this frame's look input (from the view angles before it) toward the enemies of the local
+ * game: living monsters, and the other players in deathmatch (not in coop nor CTF)
+ */
+static void
+IN_AimAssist(const vec3_t before)
+{
+	q3e_aimTarget_t targets[Q3E_AIMASSIST_MAX_TARGETS];
+	float eye[3], aim[2], delta[2];
+	int numTargets = 0;
+	qboolean players;
+	edict_t *self;
+	int i;
+
+	if (!Q3E_AimAssist_Level() || cls.state != ca_active || !ge || Com_ServerState() != IN_AIMASSIST_SS_GAME)
+	{
+		return;
+	}
+
+	self = IN_AIMASSIST_EDICT_NUM(1); /* the local player */
+	players = Cvar_VariableValue("deathmatch") && !Cvar_VariableValue("coop") && !Cvar_VariableValue("ctf");
+
+	for (i = 1; i < ge->num_edicts && numTargets < Q3E_AIMASSIST_MAX_TARGETS; i++)
+	{
+		edict_t *e = IN_AIMASSIST_EDICT_NUM(i);
+
+		if (!e->inuse || e == self || (e->svflags & SVF_DEADMONSTER) || e->solid == SOLID_NOT)
+		{
+			continue;
+		}
+		if (!(e->svflags & SVF_MONSTER) && !(players && e->client))
+		{
+			continue;
+		}
+
+		targets[numTargets].origin[0] = (e->absmin[0] + e->absmax[0]) * 0.5f;
+		targets[numTargets].origin[1] = (e->absmin[1] + e->absmax[1]) * 0.5f;
+		targets[numTargets].origin[2] = e->absmin[2] + (e->absmax[2] - e->absmin[2]) * 0.65f; /* chest */
+		targets[numTargets].radius = (e->absmax[0] - e->absmin[0]) * 0.5f;
+		numTargets++;
+	}
+	if (!numTargets)
+	{
+		return;
+	}
+
+	VectorCopy(cl.refdef.vieworg, eye);
+	aim[0] = before[PITCH] + SHORT2ANGLE(cl.frame.playerstate.pmove.delta_angles[PITCH]);
+	aim[1] = before[YAW] + SHORT2ANGLE(cl.frame.playerstate.pmove.delta_angles[YAW]);
+	delta[0] = cl.viewangles[PITCH] - before[PITCH];
+	delta[1] = cl.viewangles[YAW] - before[YAW];
+
+	if (Q3E_AimAssist_Apply(eye, aim, delta, cls.rframetime, targets, numTargets, IN_AimAssistVisible, NULL))
+	{
+		cl.viewangles[PITCH] = before[PITCH] + delta[0];
+		cl.viewangles[YAW] = before[YAW] + delta[1];
+	}
+}
+#endif
+
 void
 IN_Move(usercmd_t *cmd)
 {
 	static float old_mouse_x;
 	static float old_mouse_y;
+#ifdef __ANDROID__
+	vec3_t aimBefore;
+
+	VectorCopy(cl.viewangles, aimBefore);
+#endif
 
 	if (m_filter->value)
 	{
@@ -248,6 +330,10 @@ IN_Move(usercmd_t *cmd)
 		}
 
 		mouse_x = mouse_y = 0;
+
+#ifdef __ANDROID__
+		IN_AimAssist(aimBefore);
+#endif
 	}
 }
 

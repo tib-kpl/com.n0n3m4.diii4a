@@ -482,6 +482,83 @@ static void CL_AdjustAngles (void)
 
 int cl_ignoremousemoves = 2;
 
+#ifdef __ANDROID__ // gamepad aim assist, level from the launcher's controller settings
+#include "aimassist/q3e_aimassist.h"
+
+static int CL_AimAssistVisible(const float eye[3], const float point[3], void *user)
+{
+	trace_t tr = SV_TraceLine(eye, point, MOVE_NOMONSTERS, NULL, SUPERCONTENTS_SOLID, 0, 0, 0);
+
+	return tr.fraction >= 1.0f;
+}
+
+/*
+====================
+CL_AimAssist
+
+Adjusts this frame's look input (from the view angles before it) toward the enemies of the local
+game: living monsters, and the other players in deathmatch (not teammates in teamplay)
+====================
+*/
+static void CL_AimAssist(const vec3_t before)
+{
+	prvm_prog_t *prog = SVVM_prog;
+	q3e_aimTarget_t targets[Q3E_AIMASSIST_MAX_TARGETS];
+	float eye[3], delta[2];
+	int numTargets = 0;
+	prvm_edict_t *self;
+	qbool players;
+	vec3_t vieworg;
+	int i;
+
+	if (!Q3E_AimAssist_Level() || cls.state != ca_connected || !cls.signon || !sv.active || !prog->loaded)
+		return;
+
+	self = PRVM_EDICT_NUM(1); // the local player
+	players = deathmatch.integer && !coop.integer;
+
+	for (i = 1; i < prog->num_edicts && numTargets < Q3E_AIMASSIST_MAX_TARGETS; i++)
+	{
+		prvm_edict_t *ed = PRVM_EDICT_NUM(i);
+		const float *absmin, *absmax;
+		int flags;
+
+		if (ed->free || ed == self || PRVM_serveredictfloat(ed, health) <= 0 || PRVM_serveredictfloat(ed, deadflag))
+			continue;
+		flags = (int)PRVM_serveredictfloat(ed, flags);
+		if (!(flags & FL_MONSTER) && !(players && (flags & FL_CLIENT)))
+			continue;
+		if ((flags & FL_CLIENT) && teamplay.integer && PRVM_serveredictfloat(ed, team) == PRVM_serveredictfloat(self, team))
+			continue;
+
+		absmin = PRVM_serveredictvector(ed, absmin);
+		absmax = PRVM_serveredictvector(ed, absmax);
+		targets[numTargets].origin[0] = (absmin[0] + absmax[0]) * 0.5f;
+		targets[numTargets].origin[1] = (absmin[1] + absmax[1]) * 0.5f;
+		targets[numTargets].origin[2] = absmin[2] + (absmax[2] - absmin[2]) * 0.65f; // chest
+		targets[numTargets].radius = (absmax[0] - absmin[0]) * 0.5f;
+		numTargets++;
+	}
+	if (!numTargets)
+		return;
+
+	Matrix4x4_OriginFromMatrix(&r_refdef.view.matrix, vieworg);
+	VectorCopy(vieworg, eye);
+	delta[0] = cl.viewangles[PITCH] - before[PITCH];
+	delta[1] = cl.viewangles[YAW] - before[YAW];
+
+	{
+		const float aim[2] = { before[PITCH], before[YAW] };
+
+		if (Q3E_AimAssist_Apply(eye, aim, delta, cl.realframetime, targets, numTargets, CL_AimAssistVisible, NULL))
+		{
+			cl.viewangles[PITCH] = before[PITCH] + delta[0];
+			cl.viewangles[YAW] = before[YAW] + delta[1];
+		}
+	}
+}
+#endif
+
 /*
 ================
 CL_Input
@@ -680,7 +757,13 @@ void CL_Input (void)
 	// if not in menu, apply mouse move to viewangles/movement
 	if (!key_consoleactive && key_dest == key_game && !cl.csqc_wantsmousemove && cl_prydoncursor.integer <= 0)
 	{
+#ifdef __ANDROID__
+		vec3_t aimBefore;
+#endif
 		float modulatedsensitivity = sensitivity.value * cl.sensitivityscale;
+#ifdef __ANDROID__
+		VectorCopy(cl.viewangles, aimBefore);
+#endif
 		if (in_strafe.state & 1)
 		{
 			// strafing mode, all looking is movement
@@ -707,6 +790,9 @@ void CL_Input (void)
 			cl.viewangles[YAW] -= m_yaw.value * in_mouse_x * modulatedsensitivity * cl.viewzoom;
 			cl.cmd.forwardmove -= m_forward.value * in_mouse_y * modulatedsensitivity;
 		}
+#ifdef __ANDROID__
+		CL_AimAssist(aimBefore);
+#endif
 	}
 	else // don't pitch drift when csqc is controlling the mouse
 	{
