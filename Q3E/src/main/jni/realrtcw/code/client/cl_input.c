@@ -1013,71 +1013,86 @@ aimassist_done:
 }
 
 
-#ifdef __ANDROID__ // gamepad aim assist, level from the launcher's controller settings
-#include "aimassist/q3e_aimassist.h"
-
-#define CL_AIMASSIST_AITEAM_NEUTRAL 7 // AITEAM_NEUTRAL of game/ai_cast.h: civilians
-
-static int CL_AimAssistVisible( const float eye[3], const float point[3], void *user ) {
-	trace_t tr;
-
-	CM_BoxTrace( &tr, eye, point, vec3_origin, vec3_origin, 0, MASK_SOLID, qfalse );
-	return tr.fraction >= 1.0f;
-}
-
+#ifdef __ANDROID__
 /*
 =================
-CL_AimAssist
+CL_AimAssistMouse
 
-Adjusts this frame's look input (from the view angles before it) toward the enemies of the
-snapshot: other characters, alive, neither on the player's team nor civilians
+RealRTCW's gamepad aim assist (j_aimassist, its menu option, and its presets) for the right stick,
+which comes as mouse motion on Android: CL_JoystickMove never sees it. The same slowdown, magnet and
+escape, on this frame's look input, with the look speed standing for the stick's deflection.
+The target hints come from cgame (CG_UpdateAimAssist)
 =================
 */
-static void CL_AimAssist( const vec3_t before ) {
-	q3e_aimTarget_t targets[Q3E_AIMASSIST_MAX_TARGETS];
-	const playerState_t *ps = &cl.snap.ps;
-	float eye[3], aim[2], delta[2];
-	int numTargets = 0;
-	int i;
+#define CL_AIMASSIST_BREAKOUT 0.75f // stick deflection at which the assist lets go, as in CL_JoystickMove
+#define CL_AIMASSIST_BREAKOUT_SPEED 360.0f // look speed (degrees per second) standing for that deflection
 
-	if ( !Q3E_AimAssist_Level() || clc.state != CA_ACTIVE || !cl.snap.valid ) {
+static void CL_AimAssistMouse( const vec3_t before ) {
+	float strength = cl.cgameAA_Strength;
+	float dt = cls.frametime * 0.001f;
+	float delta[2], inLen, stickMag, dy, dp, maxStep, turnRate, corLen, relief;
+	float escape = 1.0f;
+
+	if ( !j_aimassist || !j_aimassist->integer || cl_weaponWheelActive->integer || strength <= 0.0f || dt <= 0.0f ) {
 		return;
 	}
-	if ( ps->pm_type != PM_NORMAL || ps->stats[STAT_HEALTH] <= 0 ) {
-		return;
-	}
+	CL_UpdateAimAssistPreset();
 
-	for ( i = 0; i < cl.snap.numEntities && numTargets < Q3E_AIMASSIST_MAX_TARGETS; i++ ) {
-		const entityState_t *es = &cl.parseEntities[( cl.snap.parseEntitiesNum + i ) & ( MAX_PARSE_ENTITIES - 1 )];
-
-		if ( es->eType != ET_PLAYER || es->number == ps->clientNum || ( es->eFlags & EF_DEAD ) ) {
-			continue;
-		}
-		if ( es->teamNum == ps->teamNum || es->teamNum == CL_AIMASSIST_AITEAM_NEUTRAL ) {
-			continue;
-		}
-		targets[numTargets].origin[0] = es->pos.trBase[0];
-		targets[numTargets].origin[1] = es->pos.trBase[1];
-		targets[numTargets].origin[2] = es->pos.trBase[2] + 20; // chest
-		targets[numTargets].radius = 18;
-		numTargets++;
-	}
-	if ( !numTargets ) {
-		return;
-	}
-
-	eye[0] = ps->origin[0];
-	eye[1] = ps->origin[1];
-	eye[2] = ps->origin[2] + ps->viewheight;
-	aim[0] = before[PITCH] + SHORT2ANGLE( ps->delta_angles[PITCH] );
-	aim[1] = before[YAW] + SHORT2ANGLE( ps->delta_angles[YAW] );
 	delta[0] = cl.viewangles[PITCH] - before[PITCH];
 	delta[1] = cl.viewangles[YAW] - before[YAW];
-
-	if ( Q3E_AimAssist_Apply( eye, aim, delta, cls.frametime * 0.001f, targets, numTargets, CL_AimAssistVisible, NULL ) ) {
-		cl.viewangles[PITCH] = before[PITCH] + delta[0];
-		cl.viewangles[YAW] = before[YAW] + delta[1];
+	inLen = sqrtf( delta[0] * delta[0] + delta[1] * delta[1] );
+	if ( inLen <= 0.0f ) {
+		return;
 	}
+	stickMag = CL_AIMASSIST_BREAKOUT * ( inLen / dt ) / CL_AIMASSIST_BREAKOUT_SPEED;
+	if ( stickMag >= CL_AIMASSIST_BREAKOUT ) {
+		return;
+	}
+
+	turnRate = j_aimassist_turnrate->value;
+	if ( cl.cgameIsZoomed && j_aimassist_turnrate_ads ) {
+		turnRate = j_aimassist_turnrate_ads->value;
+	}
+	maxStep = turnRate * dt;
+	dy = Com_Clamp( -maxStep, maxStep, cl.cgameAA_DYaw );
+	dp = Com_Clamp( -maxStep, maxStep, cl.cgameAA_DPitch );
+
+	// pushing away from the target fades the assist out
+	corLen = sqrtf( dy * dy + dp * dp );
+	if ( corLen > 0.001f ) {
+		float align = ( delta[1] * dy + delta[0] * dp ) / ( inLen * corLen );
+		if ( align < 0.0f ) {
+			escape = 1.0f - Com_Clamp( 0.0f, 1.0f, -align / 0.25f );
+		}
+	}
+	if ( escape <= 0.0f ) {
+		return;
+	}
+
+	relief = 1.0f - stickMag / CL_AIMASSIST_BREAKOUT;
+
+	// slowdown
+	if ( stickMag >= j_aimassist_minstick->value && j_aimassist_slowdown->value > 0.0f ) {
+		float scale = 1.0f - strength * j_aimassist_slowdown->value * relief * escape;
+		if ( scale < 0.65f ) {
+			scale = 0.65f;
+		}
+		delta[0] *= scale;
+		delta[1] *= scale;
+	}
+
+	// magnet, for small corrections only
+	if ( j_aimassist_magnet->value > 0.0f && stickMag >= j_aimassist_minstick->value && stickMag <= 0.65f ) {
+		float stickW = 1.0f - stickMag / 0.65f;
+		float m = j_aimassist_magnet->value * strength * escape;
+
+		stickW *= stickW;
+		delta[1] += dy * m * stickW;
+		delta[0] += dp * m * stickW * 0.65f;
+	}
+
+	cl.viewangles[PITCH] = before[PITCH] + delta[0];
+	cl.viewangles[YAW] = before[YAW] + delta[1];
 }
 #endif
 
@@ -1195,7 +1210,7 @@ if ( !cl_weaponWheelActive->integer ) {
 }
 
 #ifdef __ANDROID__
-	CL_AimAssist( aimBefore );
+	CL_AimAssistMouse( aimBefore );
 #endif
 }
 

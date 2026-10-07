@@ -3,7 +3,7 @@
     <string name="exit_report_title">L’application s’est arrêtée</string>
     <string name="exit_report_message">Le processus de l’application s’est arrêté sans que vous l’ayez demandé (un jeu a planté, ou le système l’a fermée).\n\nRaison : %1$s\n%2$s\n\nLes détails sont dans : %3$s</string>
     <string name="aim_assist">Aide à la visée</string>
-    <string name="aim_assist_summary" formatted="false">%s. Ralentit la vue sur un ennemi proche du viseur et l’attire un peu vers lui pendant que vous visez (RTCW, RealRTCW, Quake 3, Jedi Outcast, Jedi Academy)</string>
+    <string name="aim_assist_summary" formatted="false">%s. Ralentit la vue sur un ennemi proche du viseur et l’attire un peu vers lui pendant que vous visez (RTCW, Quake 3, Jedi Outcast, Jedi Academy ; RealRTCW a la sienne, dans son menu des commandes)</string>
     <string-array name="aim_assist_names">
         <item>Désactivée</item>
         <item>Légère</item>
