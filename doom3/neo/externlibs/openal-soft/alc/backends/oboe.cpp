@@ -5,6 +5,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <mutex>
 #include <stdint.h>
 
 #include "alnumeric.h"
@@ -24,9 +25,13 @@ struct OboePlayback final : public BackendBase, public oboe::AudioStreamCallback
     OboePlayback(DeviceBase *device) : BackendBase{device} { }
 
     oboe::ManagedStream mStream;
+    std::mutex mStreamLock; //k: mStream is replaced from Oboe's error thread
+    bool mRunning{false};
 
     oboe::DataCallbackResult onAudioReady(oboe::AudioStream *oboeStream, void *audioData,
         int32_t numFrames) override;
+    //k: Oboe closes the stream when the output device changes (Bluetooth headset (dis)connected): reopen it on the new device
+    void onErrorAfterClose(oboe::AudioStream *oboeStream, oboe::Result error) override;
 
     void open(const char *name) override;
     bool reset() override;
@@ -67,8 +72,51 @@ void OboePlayback::open(const char *name)
     mDevice->DeviceName = name;
 }
 
+//k: runs on Oboe's error thread, after it has stopped and closed the stream
+void OboePlayback::onErrorAfterClose(oboe::AudioStream *oboeStream, oboe::Result error)
+{
+    std::lock_guard<std::mutex> _{mStreamLock};
+    if(mStream.get() != oboeStream)
+        return;
+    WARN("Stream closed: %s\n", oboe::convertToText(error));
+    if(error != oboe::Result::ErrorDisconnected)
+        return;
+
+    /* Keep the format the device was set up with, letting Oboe convert to the
+     * new output.
+     */
+    oboe::AudioStreamBuilder builder;
+    builder.setDirection(oboe::Direction::Output)
+        ->setPerformanceMode(oboe::PerformanceMode::LowLatency)
+        ->setSampleRateConversionQuality(oboe::SampleRateConversionQuality::High)
+        ->setChannelConversionAllowed(true)
+        ->setFormatConversionAllowed(true)
+        ->setSampleRate(static_cast<int32_t>(mDevice->Frequency))
+        ->setChannelCount(static_cast<int32_t>(mDevice->channelsFromFmt()))
+        ->setFormat(mStream->getFormat())
+        ->setCallback(this);
+
+    /* The error thread is done with the old stream once this returns, so it
+     * can be deleted here.
+     */
+    oboe::ManagedStream stream;
+    const oboe::Result result{builder.openManagedStream(stream)};
+    if(result != oboe::Result::OK)
+    {
+        ERR("Failed to reopen stream: %s\n", oboe::convertToText(result));
+        return;
+    }
+    stream->setBufferSizeInFrames(mini(static_cast<int32_t>(mDevice->BufferSize),
+        stream->getBufferCapacityInFrames()));
+    mStream = std::move(stream);
+    if(mRunning)
+        mStream->requestStart();
+    TRACE("Reopened stream with properties:\n%s", oboe::convertToText(mStream.get()));
+}
+
 bool OboePlayback::reset()
 {
+    std::lock_guard<std::mutex> _{mStreamLock};
     oboe::AudioStreamBuilder builder;
     builder.setDirection(oboe::Direction::Output);
     builder.setPerformanceMode(oboe::PerformanceMode::LowLatency);
@@ -187,6 +235,8 @@ bool OboePlayback::reset()
 
 void OboePlayback::start()
 {
+    std::lock_guard<std::mutex> _{mStreamLock};
+    mRunning = true;
     const oboe::Result result{mStream->start()};
     if(result != oboe::Result::OK)
         throw al::backend_exception{al::backend_error::DeviceError, "Failed to start stream: %s",
@@ -195,6 +245,8 @@ void OboePlayback::start()
 
 void OboePlayback::stop()
 {
+    std::lock_guard<std::mutex> _{mStreamLock};
+    mRunning = false;
     oboe::Result result{mStream->stop()};
     if(result != oboe::Result::OK)
         throw al::backend_exception{al::backend_error::DeviceError, "Failed to stop stream: %s",

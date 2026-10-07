@@ -19,7 +19,7 @@
 
 using namespace oboe;
 
-class Q3EOboeAudio : public AudioStreamDataCallback {
+class Q3EOboeAudio : public AudioStreamDataCallback, public AudioStreamErrorCallback {
 public:
     Q3EOboeAudio() = default;
     virtual ~Q3EOboeAudio();
@@ -48,6 +48,8 @@ public:
     }
 
     DataCallbackResult onAudioReady(AudioStream *oboeStream, void *audioData, int32_t numFrames) override;
+    // Oboe closes the stream when the output device changes (Bluetooth headset (dis)connected): reopen it on the new device
+    void onErrorAfterClose(AudioStream *oboeStream, Result error) override;
 
     Q3EOboeAudio(const Q3EOboeAudio &) = delete;
     Q3EOboeAudio(Q3EOboeAudio &&) = delete;
@@ -66,6 +68,7 @@ private:
     AudioFormat format = Q3E_OBOE_DEFAULT_FORMAT;
     Q3E_write_audio_data_f func = nullptr;
     unsigned int width = Q3E_OBOE_DEFAULT_WIDTH;
+    bool running = false;
 };
 
 static Q3EOboeAudio audio;
@@ -133,7 +136,8 @@ void Q3EOboeAudio::InitStream()
 {
     AudioStreamBuilder builder;
     // The builder set methods can be chained for convenience.
-    Result result = builder.setSharingMode(SharingMode::Exclusive)
+    // Shared: an exclusive stream is cut on every route change and often refused on Bluetooth outputs
+    Result result = builder.setSharingMode(SharingMode::Shared)
             ->setDirection(oboe::Direction::Output)
             ->setPerformanceMode(PerformanceMode::LowLatency)
             ->setUsage(oboe::Usage::Game)
@@ -142,6 +146,7 @@ void Q3EOboeAudio::InitStream()
             ->setSampleRateConversionQuality(SampleRateConversionQuality::Medium)
             ->setFormat(format)
             ->setDataCallback(this)
+            ->setErrorCallback(this)
             ->openStream(mStream);
     if (result != Result::OK) {
         fprintf(stderr, "Q3EOboeAudio build stream error: %d\n", result);
@@ -158,6 +163,7 @@ void Q3EOboeAudio::Shutdown() {
     printf("Q3EOboeAudio shutdown\n");
 
     // Stop, close and delete in case not already closed.
+    running = false;
     if (mStream) {
         mStream->stop();
         mStream->close();
@@ -180,6 +186,7 @@ void Q3EOboeAudio::Start() {
         return;
     }
 
+    running = true;
     mStream->requestStart();
 }
 
@@ -192,7 +199,28 @@ void Q3EOboeAudio::Stop() {
         return;
     }
 
+    running = false;
     mStream->requestStop();
+}
+
+// Runs on Oboe's error thread, after it has stopped and closed the stream
+void Q3EOboeAudio::onErrorAfterClose(AudioStream *oboeStream, Result error)
+{
+    LOCK_AUDIO();
+
+    // stale stream (already shut down or replaced)
+    if(!mStream || mStream.get() != oboeStream)
+        return;
+
+    printf("Q3EOboeAudio stream closed (%s), reopening\n", convertToText(error));
+    // Oboe's error thread holds its own reference to the stream, so dropping ours is safe here
+    mStream.reset();
+    if(error != Result::ErrorDisconnected)
+        return;
+
+    InitStream();
+    if(mStream && running && func)
+        mStream->requestStart();
 }
 
 DataCallbackResult Q3EOboeAudio::onAudioReady(AudioStream *oboeStream, void *audioData, int32_t numFrames)
