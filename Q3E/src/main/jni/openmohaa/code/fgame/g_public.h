@@ -582,6 +582,10 @@ typedef struct gameExport_s {
     int               max_entities;
 
     const char *errorMessage;
+
+    // gamepad aim assist (Android): the player's enemies it may help with, as chest point (x, y, z) and
+    // body radius, returns their number. Last, so the fields above keep their place
+    int (*AimAssistTargets)(float (*targets)[4], int maxTargets);
 } game_export_t;
 
 #ifdef __cplusplus

@@ -1604,6 +1604,58 @@ qboolean G_ReadLevel(const char *filename, byte **savedCgameState, size_t *saved
 
 /*
 ================
+G_AimAssistTargets
+
+The player's enemies for the gamepad aim assist: living characters not on the player's side
+(campaign), or players of the other team (multiplayer, everyone in free for all)
+================
+*/
+static int G_AimAssistTargets(float (*targets)[4], int maxTargets)
+{
+    gentity_t *edict      = &g_entities[0];
+    int        numTargets = 0;
+    Player    *player;
+
+    if (!edict->inuse || !edict->entity || !edict->entity->isSubclassOf(Player)) {
+        return 0;
+    }
+    player = static_cast<Player *>(edict->entity);
+    if (player->IsDead()) {
+        return 0;
+    }
+
+    for (int i = 1; i < globals.num_entities && numTargets < maxTargets; i++) {
+        gentity_t *ent = &g_entities[i];
+        Sentient  *other;
+
+        if (!ent->inuse || !ent->entity || !ent->entity->isSubclassOf(Sentient)) {
+            continue;
+        }
+        other = static_cast<Sentient *>(ent->entity);
+        if (other->IsDead()) {
+            continue;
+        }
+        if (other->isSubclassOf(Player)) {
+            teamtype_t team = static_cast<Player *>(other)->GetTeam();
+
+            if (team == TEAM_SPECTATOR || (team == player->GetTeam() && team != TEAM_FREEFORALL)) {
+                continue;
+            }
+        } else if (player->IsTeamMate(other)) {
+            continue;
+        }
+
+        targets[numTargets][0] = other->centroid[0];
+        targets[numTargets][1] = other->centroid[1];
+        targets[numTargets][2] = other->centroid[2] + 8; // chest
+        targets[numTargets][3] = 16;
+        numTargets++;
+    }
+    return numTargets;
+}
+
+/*
+================
 GetGameAPI
 
 Gets game imports and returns game exports
@@ -1674,6 +1726,8 @@ extern "C" game_export_t *GetGameAPI(game_import_t *import)
     globals.SoundCallback    = G_SoundCallback;
     globals.SpawnEntities    = G_SpawnEntities;
     globals.TIKI_Orientation = G_TIKI_Orientation;
+
+    globals.AimAssistTargets = G_AimAssistTargets;
 
     return &globals;
 }
