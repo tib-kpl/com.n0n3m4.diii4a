@@ -36,7 +36,8 @@
 > **Fork for the French version of RealRTCW and Android fixes** of [glKarin/com.n0n3m4.diii4a](https://github.com/glKarin/com.n0n3m4.diii4a) (based on 1.1.0harmattan73).
 > It updates RealRTCW to 5.44c and fixes its start on Android, translates it into French (with an in-game language option),
 > removes a grey noise flash during its level loads, makes the gamepad work the RTCW / RealRTCW menus (d-pad, A, B, LB/RB, smoother camera),
-> adds a gamepad aim assist (RTCW, Quake 3, Jedi Outcast / Academy, Urban Terror, ET: Legacy, OpenMoHAA, set in the app's controller settings),
+> adds a gamepad aim assist (RTCW, Quake 3, Jedi Outcast / Academy, Urban Terror, ET: Legacy, OpenMoHAA, DOOM 3, Quake 4, Prey and their mods,
+> set in the app's controller settings),
 > makes RealRTCW's own aim assist work with the right stick,
 > makes the sound follow a Bluetooth headset being connected or disconnected, fixes a crash at start on recent kernels (#605)
 > and an `EGL_BAD_CONFIG` stop in Quake 4, reports why the app ended in `exit_report.txt`, and builds its own releases.
