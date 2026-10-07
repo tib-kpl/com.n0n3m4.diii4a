@@ -433,6 +433,87 @@ void CL_JoystickMove( usercmd_t *cmd ) {
 	cmd->upmove = ClampChar( cmd->upmove + (int)up );
 }
 
+#ifdef __ANDROID__ // gamepad aim assist, level from the launcher's controller settings
+#include "aimassist/q3e_aimassist.h"
+
+static int CL_AimAssistVisible(const float eye[3], const float point[3], void *user)
+{
+	trace_t tr;
+
+	CM_BoxTrace(&tr, eye, point, vec3_origin, vec3_origin, 0, CONTENTS_SOLID, qfalse);
+	return tr.fraction >= 1.0f;
+}
+
+static int CL_AimAssistPlayerTeam(int clientNum)
+{
+	int offset;
+
+	if(clientNum < 0 || clientNum >= MAX_CLIENTS)
+		return TEAM_FREE;
+	offset = cl.gameState.stringOffsets[CS_PLAYERS + clientNum];
+	if(!offset)
+		return TEAM_FREE;
+	return atoi(Info_ValueForKey(cl.gameState.stringData + offset, "t"));
+}
+
+/*
+=================
+CL_AimAssist
+
+Adjusts this frame's look input (from the view angles before it) toward the enemies of the
+snapshot: other players, alive, not on the player's team in team games
+=================
+*/
+static void CL_AimAssist(const vec3_t before)
+{
+	q3e_aimTarget_t targets[Q3E_AIMASSIST_MAX_TARGETS];
+	const playerState_t *ps = &cl.snap.ps;
+	float eye[3], aim[2], delta[2];
+	int numTargets = 0;
+	int teamGame, myTeam;
+	int i;
+
+	if(!Q3E_AimAssist_Level() || clc.state != CA_ACTIVE || !cl.snap.valid)
+		return;
+	if(ps->pm_type != PM_NORMAL || ps->stats[STAT_HEALTH] <= 0)
+		return;
+
+	teamGame = atoi(Info_ValueForKey(cl.gameState.stringData + cl.gameState.stringOffsets[CS_SERVERINFO], "g_gametype")) >= GT_TEAM;
+	myTeam = ps->persistant[PERS_TEAM];
+
+	for(i = 0; i < cl.snap.numEntities && numTargets < Q3E_AIMASSIST_MAX_TARGETS; i++)
+	{
+		const entityState_t *es = &cl.parseEntities[(cl.snap.parseEntitiesNum + i) & (MAX_PARSE_ENTITIES - 1)];
+
+		if(es->eType != ET_PLAYER || es->number == ps->clientNum || (es->eFlags & EF_DEAD))
+			continue;
+		if(teamGame && CL_AimAssistPlayerTeam(es->clientNum) == myTeam)
+			continue;
+		targets[numTargets].origin[0] = es->pos.trBase[0];
+		targets[numTargets].origin[1] = es->pos.trBase[1];
+		targets[numTargets].origin[2] = es->pos.trBase[2] + 12; // chest
+		targets[numTargets].radius = 16;
+		numTargets++;
+	}
+	if(!numTargets)
+		return;
+
+	eye[0] = ps->origin[0];
+	eye[1] = ps->origin[1];
+	eye[2] = ps->origin[2] + ps->viewheight;
+	aim[0] = before[PITCH] + SHORT2ANGLE(ps->delta_angles[PITCH]);
+	aim[1] = before[YAW] + SHORT2ANGLE(ps->delta_angles[YAW]);
+	delta[0] = cl.viewangles[PITCH] - before[PITCH];
+	delta[1] = cl.viewangles[YAW] - before[YAW];
+
+	if(Q3E_AimAssist_Apply(eye, aim, delta, cls.frametime * 0.001f, targets, numTargets, CL_AimAssistVisible, NULL))
+	{
+		cl.viewangles[PITCH] = before[PITCH] + delta[0];
+		cl.viewangles[YAW] = before[YAW] + delta[1];
+	}
+}
+#endif
+
 /*
 =================
 CL_MouseMove
@@ -442,6 +523,11 @@ CL_MouseMove
 void CL_MouseMove(usercmd_t *cmd)
 {
 	float mx, my;
+#ifdef __ANDROID__
+	vec3_t aimBefore;
+
+	VectorCopy(cl.viewangles, aimBefore);
+#endif
 
 	// allow mouse smoothing
 	if (m_filter->integer)
@@ -520,6 +606,10 @@ void CL_MouseMove(usercmd_t *cmd)
 		cl.viewangles[PITCH] += m_pitch->value * my;
 	else
 		cmd->forwardmove = ClampChar(cmd->forwardmove - m_forward->value * my);
+
+#ifdef __ANDROID__
+	CL_AimAssist(aimBefore);
+#endif
 }
 
 

@@ -529,6 +529,66 @@ void CL_JoystickMove( usercmd_t *cmd ) {
 	cmd->upmove = ClampChar( cmd->upmove + cl.joystickAxis[AXIS_UP] );
 }
 
+#ifdef __ANDROID__ // gamepad aim assist, level from the launcher's controller settings
+#include "aimassist/q3e_aimassist.h"
+#include "../server/server.h"
+
+static int CL_AimAssistVisible( const float eye[3], const float point[3], void *user ) {
+	trace_t tr;
+
+	CM_BoxTrace( &tr, eye, point, vec3_origin, vec3_origin, 0, CONTENTS_SOLID );
+	return tr.fraction >= 1.0f;
+}
+
+/*
+=================
+CL_AimAssist
+
+Adjusts this frame's look input (from the view angles before it) toward the player's enemies,
+which the game gives (single player: the game runs in this process)
+=================
+*/
+static void CL_AimAssist( const vec3_t before ) {
+	q3e_aimTarget_t targets[Q3E_AIMASSIST_MAX_TARGETS];
+	float found[Q3E_AIMASSIST_MAX_TARGETS][4];
+	const playerState_t *ps = &cl.frame.ps;
+	float eye[3], aim[2], delta[2];
+	int numTargets;
+	int i;
+
+	if ( !Q3E_AimAssist_Level() || cls.state != CA_ACTIVE || !cl.frame.valid ) {
+		return;
+	}
+	if ( !ge || !ge->AimAssistTargets || ps->pm_type != PM_NORMAL || ps->stats[STAT_HEALTH] <= 0 ) {
+		return;
+	}
+
+	numTargets = ge->AimAssistTargets( found, Q3E_AIMASSIST_MAX_TARGETS );
+	for ( i = 0; i < numTargets; i++ ) {
+		targets[i].origin[0] = found[i][0];
+		targets[i].origin[1] = found[i][1];
+		targets[i].origin[2] = found[i][2];
+		targets[i].radius = found[i][3];
+	}
+	if ( numTargets <= 0 ) {
+		return;
+	}
+
+	eye[0] = ps->origin[0];
+	eye[1] = ps->origin[1];
+	eye[2] = ps->origin[2] + ps->viewheight;
+	aim[0] = before[PITCH] + SHORT2ANGLE( ps->delta_angles[PITCH] );
+	aim[1] = before[YAW] + SHORT2ANGLE( ps->delta_angles[YAW] );
+	delta[0] = cl.viewangles[PITCH] - before[PITCH];
+	delta[1] = cl.viewangles[YAW] - before[YAW];
+
+	if ( Q3E_AimAssist_Apply( eye, aim, delta, cls.frametime * 0.001f, targets, numTargets, CL_AimAssistVisible, NULL ) ) {
+		cl.viewangles[PITCH] = before[PITCH] + delta[0];
+		cl.viewangles[YAW] = before[YAW] + delta[1];
+	}
+}
+#endif
+
 /*
 =================
 CL_MouseMove
@@ -536,6 +596,11 @@ CL_MouseMove
 */
 void CL_MouseMove( usercmd_t *cmd ) {
 	float	mx, my;
+#ifdef __ANDROID__
+	vec3_t	aimBefore;
+
+	VectorCopy( cl.viewangles, aimBefore );
+#endif
 	float	accelSensitivity;
 	float	rate;
 	const float	speed = static_cast<float>(frame_msec);
@@ -606,6 +671,10 @@ void CL_MouseMove( usercmd_t *cmd ) {
 	} else {
 		cmd->forwardmove = ClampChar( cmd->forwardmove - m_forward->value * my );
 	}
+
+#ifdef __ANDROID__
+	CL_AimAssist( aimBefore );
+#endif
 }
 
 

@@ -40,6 +40,15 @@
             android:inputType="numberDecimal"
             android:summary="@string/right_joystick_sensitivity_summary"
             />
+        <ListPreference
+            android:title="@string/aim_assist"
+            android:key="harm_aim_assist"
+            android:persistent="true"
+            android:defaultValue="0"
+            android:entries="@array/aim_assist_names"
+            android:entryValues="@array/aim_assist_values"
+            android:summary="@string/aim_assist_summary"
+            />
     </PreferenceCategory>
 
     <PreferenceCategory

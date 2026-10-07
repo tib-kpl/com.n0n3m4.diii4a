@@ -173,6 +173,7 @@ public class ControllerConfigPreference extends PreferenceFragment implements Pr
         edit.putString(Q3EPreference.pref_harm_left_joystick_deadzone, "0.01");
         edit.putString(Q3EPreference.pref_harm_right_joystick_deadzone, "0");
         edit.putString(Q3EPreference.pref_harm_right_joystick_sensitivity, "1");
+        edit.putString(Q3EPreference.pref_harm_aim_assist, "0");
 
         edit.remove(Q3EPreference.pref_harm_gamepad_keymap);
 

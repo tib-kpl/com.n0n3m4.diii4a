@@ -18,6 +18,9 @@
 > - LB et RB (roue des armes, grenade) arrivent enfin au jeu.
 > - Caméra plus fluide au stick droit : 60 i/s sur Android, `m_filter` activé, mouvements de moins d'un pixel conservés.
 >
+> **Aide à la visée à la manette**
+> - Nouveau réglage « Aide à la visée » dans les réglages manette de l'app (désactivée, légère, moyenne, forte), pour RTCW, RealRTCW, Quake 3, Jedi Outcast et Jedi Academy. La vue ralentit sur un ennemi proche du viseur et s'attire un peu vers lui pendant qu'on vise. Elle se désactive dès qu'on tourne vite ou qu'on s'éloigne de la cible. Les alliés et les civils sont ignorés, et dans Jedi Knight elle ne joue pas avec le sabre.
+>
 > **Son (tous les jeux qui passent par Oboe ou OpenAL Soft)**
 > - Le son suit la sortie audio : il passe sur le casque Bluetooth quand on le connecte, et revient sur la console quand on le déconnecte.
 >
@@ -32,6 +35,7 @@
 > **Fork for the French version of RealRTCW and Android fixes** of [glKarin/com.n0n3m4.diii4a](https://github.com/glKarin/com.n0n3m4.diii4a) (based on 1.1.0harmattan73).
 > It updates RealRTCW to 5.44c and fixes its start on Android, translates it into French (with an in-game language option),
 > removes a grey noise flash during its level loads, makes the gamepad work the RTCW / RealRTCW menus (d-pad, A, B, LB/RB, smoother camera),
+> adds a gamepad aim assist (RTCW, RealRTCW, Quake 3, Jedi Outcast / Academy, set in the app's controller settings),
 > makes the sound follow a Bluetooth headset being connected or disconnected, fixes a crash at start on recent kernels (#605)
 > and an `EGL_BAD_CONFIG` stop in Quake 4, reports why the app ended in `exit_report.txt`, and builds its own releases.
 > The download links below lead to the upstream builds, without these changes. This fork's own builds,

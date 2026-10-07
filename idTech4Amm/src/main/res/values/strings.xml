@@ -522,6 +522,20 @@
     <string name="right_joystick_dead_zone_summary">Right joystick minimum axis value(default 0)</string>
     <string name="right_joystick_sensitivity_summary">Right joystick emulate mouse sensitivity(default 1)</string>
     <string name="joystick_dpad">Joystick/DPad</string>
+    <string name="aim_assist">Aim assist</string>
+    <string name="aim_assist_summary" formatted="false">%s. Slows the view down on an enemy near the crosshair and pulls it a little toward them while you aim (RTCW, RealRTCW, Quake 3, Jedi Outcast, Jedi Academy)</string>
+    <string-array name="aim_assist_names">
+        <item>Off</item>
+        <item>Light</item>
+        <item>Medium</item>
+        <item>Strong</item>
+    </string-array>
+    <string-array name="aim_assist_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+    </string-array>
     <string name="controller_configure">Controller configure</string>
     <string name="reset_controller_config">Reset controller configuage?</string>
     <string name="controller_configure_has_reset">Controller configure has reset.</string>

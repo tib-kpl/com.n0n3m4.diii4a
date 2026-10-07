@@ -774,6 +774,50 @@ static void G_Cvar_Create( const char *var_name, const char *var_value, int flag
 
 /*
 =================
+G_AimAssistTargets
+
+The player's enemies for the gamepad aim assist: alive characters on the player's enemy team or
+attacking the player. None with the saber in hand
+=================
+*/
+static int G_AimAssistTargets( float (*targets)[4], int maxTargets )
+{
+	gentity_t	*player = &g_entities[0];
+	int			numTargets = 0;
+
+	if ( !player->inuse || !player->client || player->health <= 0 || player->client->ps.weapon == WP_SABER )
+	{
+		return 0;
+	}
+
+	for ( int i = 1; i < globals.num_entities && numTargets < maxTargets; i++ )
+	{
+		gentity_t *ent = &g_entities[i];
+
+		if ( !ent->inuse || !ent->client || ent->health <= 0 || ( ent->s.eFlags & EF_NODRAW ) )
+		{
+			continue;
+		}
+		if ( ent->client->playerTeam == player->client->playerTeam )
+		{
+			continue;
+		}
+		if ( ent->client->playerTeam != player->client->enemyTeam && ent->enemy != player )
+		{
+			continue;
+		}
+
+		targets[numTargets][0] = ent->currentOrigin[0];
+		targets[numTargets][1] = ent->currentOrigin[1];
+		targets[numTargets][2] = ent->currentOrigin[2] + ent->mins[2] + ( ent->maxs[2] - ent->mins[2] ) * 0.65f; // chest
+		targets[numTargets][3] = ent->maxs[0] > 12 ? ent->maxs[0] : 12;
+		numTargets++;
+	}
+	return numTargets;
+}
+
+/*
+=================
 GetGameAPI
 
 Returns a pointer to the structure with all entry points
@@ -809,6 +853,7 @@ extern "C" Q_EXPORT game_export_t* QDECL GetGameAPI( game_import_t *import ) {
 //	globals.ValidateAnimRange = PM_ValidateAnimRange;
 
 	globals.gentitySize = sizeof(gentity_t);
+	globals.AimAssistTargets = G_AimAssistTargets;
 
 	gameinfo_import.FS_FOpenFile = gi.FS_FOpenFile;
 	gameinfo_import.FS_Read = gi.FS_Read;

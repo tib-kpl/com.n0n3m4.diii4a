@@ -430,6 +430,10 @@ typedef struct {
 	struct gentity_s	*gentities;
 	int			gentitySize;
 	int			num_entities;		// current number, <= MAX_GENTITIES
+
+	// gamepad aim assist (Android): the player's enemies it may help with, as chest point (x, y, z) and
+	// body radius, returns their number. Last, so the fields above keep their place
+	int			(*AimAssistTargets)( float (*targets)[4], int maxTargets );
 } game_export_t;
 
 game_export_t *GetGameApi (game_import_t *import);

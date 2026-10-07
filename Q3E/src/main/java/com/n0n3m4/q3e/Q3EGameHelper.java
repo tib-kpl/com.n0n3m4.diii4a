@@ -1422,6 +1422,8 @@ class Q3EGameHelper
         //Q3EJNI.Setenv("ALSOFT_LOGLEVEL", "3");
         if(null != openalDriver)
             Q3EJNI.Setenv("ALSOFT_DRIVERS", openalDriver, 1);
+        // gamepad aim assist level, read by the engines that have it (common/aimassist/q3e_aimassist.h)
+        Q3EJNI.Setenv("Q3E_AIM_ASSIST", preferences.getString(Q3EPreference.pref_harm_aim_assist, "0"), 1);
 
         boolean res = Q3EJNI.init(
                 engineLib,

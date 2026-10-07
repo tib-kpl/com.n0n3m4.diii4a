@@ -30,6 +30,7 @@ public final class Q3EPreference
     public static final String pref_harm_right_joystick_deadzone    = "harm_right_joystick_deadzone";
     public static final String pref_harm_dpad_as_arrow_key          = "harm_dpad_as_arrow_key";
     public static final String pref_harm_right_joystick_sensitivity = "harm_right_joystick_sensitivity";
+    public static final String pref_harm_aim_assist                 = "harm_aim_assist"; // 0 off, 1 light, 2 medium, 3 strong
     public static final String pref_harm_gamepad_keymap             = "harm_gamepad_keymap";
     public static final String pref_harm_sdl_audio_driver           = "harm_sdl_audio_driver";
     public static final String pref_harm_openal_driver              = "harm_openal_driver";
