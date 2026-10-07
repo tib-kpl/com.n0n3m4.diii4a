@@ -3018,6 +3018,11 @@ static idCVar	harm_fs_gameLibPath("harm_fs_gameLibPath", "", CVAR_SYSTEM | CVAR_
 		"default is empty will load by cvar `fs_game`."); // This cvar priority is higher than `fs_game`.
 static idCVar	harm_fs_gameLibDir("harm_fs_gameLibDir", "", CVAR_SYSTEM | CVAR_INIT | CVAR_SERVERINFO, "Setup game dynamic library directory path(default is empty, means using `" _DEFAULT_LIBRARY_DIR "`).");
 
+#ifdef __ANDROID__ // gamepad aim assist (framework/UsercmdGen.cpp, common/aimassist/q3e_aimassist.h)
+typedef int (*q3eAimAssistTargets_t)(float eye[3], float viewDelta[2], float (*targets)[4], int maxTargets);
+extern q3eAimAssistTargets_t q3e_aimAssistTargets;
+#endif
+
 /*
 =================
 idCommonLocal::LoadGameDLL
@@ -3247,6 +3252,10 @@ void idCommonLocal::LoadGameDLL(void)
 	game								= gameExport.game;
 	gameEdit							= gameExport.gameEdit;
 
+#ifdef __ANDROID__ // gamepad aim assist: optional, only in the games that have it
+	q3e_aimAssistTargets = (q3eAimAssistTargets_t) Sys_DLL_GetProcAddress(gameDLL, "Q3E_AimAssistTargets");
+#endif
+
 #endif
 
 	// initialize the game object
@@ -3277,6 +3286,10 @@ void idCommonLocal::UnloadGameDLL(void)
 	}
 
 #ifdef __DOOM_DLL__
+
+#ifdef __ANDROID__
+	q3e_aimAssistTargets = NULL;
+#endif
 
 	if (gameDLL) {
 		Sys_DLL_Unload(gameDLL);

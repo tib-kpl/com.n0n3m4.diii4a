@@ -34,6 +34,10 @@ typedef struct
 // line of sight from eye to point
 typedef int (*q3e_aimVisible_f)(const float eye[3], const float point[3], void *user);
 
+// idTech 4: Q3E_AimAssistTargets, optional in the game library: the local player's eye, view delta
+// angles (pitch, yaw) and visible enemies (chest point x, y, z and body radius), returns their number
+typedef int (*q3eAimAssistTargets_t)(float eye[3], float viewDelta[2], float (*targets)[4], int maxTargets);
+
 typedef struct
 {
     float slowdown; // look slowdown on target, 0..1

@@ -4936,3 +4936,76 @@ void idGameLocal::UpdateMusicVolume( void ) {
 }
 
 //ivan end
+
+#ifdef __ANDROID__
+/*
+===========
+Q3E_AimAssistTargets
+
+Gamepad aim assist: the engine looks this up in the game library (framework/Common.cpp,
+framework/UsercmdGen.cpp). Gives the local player's eye, view delta angles (pitch, yaw) and its
+visible enemies, as chest point (x, y, z) and body radius: living actors of another team, or
+other players in multiplayer (all of them without teams). Returns their number
+===========
+*/
+#pragma GCC visibility push(default)
+extern "C" int Q3E_AimAssistTargets(float eye[3], float viewDelta[2], float (*targets)[4], int maxTargets)
+{
+	idPlayer	*player = gameLocal.GetLocalPlayer();
+	int			numTargets = 0;
+
+	if (!player || player->health <= 0 || player->spectating || gameLocal.inCinematic) {
+		return 0;
+	}
+
+	const idVec3	playerEye = player->GetEyePosition();
+	const idAngles	&delta = player->GetDeltaViewAngles();
+
+	eye[0] = playerEye.x;
+	eye[1] = playerEye.y;
+	eye[2] = playerEye.z;
+	viewDelta[0] = delta.pitch;
+	viewDelta[1] = delta.yaw;
+
+	for (idEntity *ent = gameLocal.spawnedEntities.Next(); ent != NULL && numTargets < maxTargets; ent = ent->spawnNode.Next()) {
+		if (ent == player || !ent->IsType(idActor::Type) || ent->health <= 0 || ent->IsHidden()) {
+			continue;
+		}
+
+		const idActor *actor = static_cast<const idActor *>(ent);
+
+		if (ent->IsType(idPlayer::Type)) {
+			if (!gameLocal.isMultiplayer || static_cast<const idPlayer *>(ent)->spectating) {
+				continue;
+			}
+			#ifdef CTF
+			if (actor->team == player->team && gameLocal.mpGame.IsGametypeTeamBased()) {
+#else
+			if (actor->team == player->team && gameLocal.gameType == GAME_TDM) {
+#endif
+				continue;
+			}
+		} else if (actor->team == player->team) {
+			continue;
+		}
+
+		const idBounds	&bounds = ent->GetPhysics()->GetAbsBounds();
+		idVec3			chest = bounds.GetCenter();
+		trace_t			tr;
+
+		chest.z = bounds[0].z + (bounds[1].z - bounds[0].z) * 0.65f;
+		gameLocal.clip.TracePoint(tr, playerEye, chest, MASK_OPAQUE, player);
+		if (tr.fraction < 1.0f && gameLocal.entities[tr.c.entityNum] != ent) {
+			continue;
+		}
+
+		targets[numTargets][0] = chest.x;
+		targets[numTargets][1] = chest.y;
+		targets[numTargets][2] = chest.z;
+		targets[numTargets][3] = (bounds[1].x - bounds[0].x) * 0.5f;
+		numTargets++;
+	}
+	return numTargets;
+}
+#pragma GCC visibility pop
+#endif

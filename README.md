@@ -19,7 +19,7 @@
 > - Caméra plus fluide au stick droit : 60 i/s sur Android, `m_filter` activé, mouvements de moins d'un pixel conservés.
 >
 > **Aide à la visée à la manette**
-> - Nouveau réglage « Aide à la visée » dans les réglages manette de l'app (désactivée, légère, moyenne, forte), pour RTCW, Quake 3, Jedi Outcast, Jedi Academy, Urban Terror, ET: Legacy et OpenMoHAA. La vue ralentit sur un ennemi proche du viseur et s'attire un peu vers lui pendant qu'on vise. Elle se désactive dès qu'on tourne vite ou qu'on s'éloigne de la cible. Les alliés, les civils et les coéquipiers sont ignorés, et dans Jedi Knight elle ne joue pas avec le sabre.
+> - Nouveau réglage « Aide à la visée » dans les réglages manette de l'app (désactivée, légère, moyenne, forte), pour RTCW, Quake 3, Jedi Outcast, Jedi Academy, Urban Terror, ET: Legacy, OpenMoHAA, DOOM 3, Quake 4 et Prey (et leurs mods). La vue ralentit sur un ennemi proche du viseur et s'attire un peu vers lui pendant qu'on vise. Elle se désactive dès qu'on tourne vite ou qu'on s'éloigne de la cible. Les alliés, les civils et les coéquipiers sont ignorés, et dans Jedi Knight elle ne joue pas avec le sabre.
 > - RealRTCW : sa propre aide à la visée (option du jeu `j_aimassist`) marche maintenant au stick droit. Sur Android, le stick arrive comme une souris et elle ne le voyait pas.
 >
 > **Son (tous les jeux qui passent par Oboe ou OpenAL Soft)**
