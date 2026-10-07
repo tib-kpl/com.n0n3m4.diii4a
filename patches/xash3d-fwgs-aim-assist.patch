@@ -1,0 +1,122 @@
+diff --git a/engine/client/cl_main.c b/engine/client/cl_main.c
+index d2c3689..8e3dcff 100644
+--- a/engine/client/cl_main.c
++++ b/engine/client/cl_main.c
+@@ -635,6 +635,91 @@ static void CL_UpdateClientData( void )
+ 	}
+ }
+ 
++#ifdef _DIII4A //karin: gamepad aim assist, level from the launcher's controller settings (Q3E_AIM_ASSIST)
++#include "server.h"
++#include "aimassist/q3e_aimassist.h"
++
++// optional in the server game library: whether this entity is hostile to the local player
++typedef int (*q3eAimAssistIsEnemy_t)( edict_t *ent );
++
++static int CL_AimAssistVisible( const float eye[3], const float point[3], void *user )
++{
++	trace_t tr = SV_Move( eye, vec3_origin, vec3_origin, point, MOVE_NOMONSTERS, (edict_t *)user, false );
++
++	return tr.fraction >= 1.0f;
++}
++
++/*
++=================
++CL_AimAssist
++
++Adjusts this command's look input (from the view angles before CL_CreateMove) toward the enemies
++of the local game: the hostile ones when the game library tells (Q3E_AimAssistIsEnemy), else the
++living monsters
++=================
++*/
++static void CL_AimAssist( const vec3_t before, usercmd_t *cmd )
++{
++	static void *gameLib;
++	static q3eAimAssistIsEnemy_t isEnemy;
++	q3e_aimTarget_t targets[Q3E_AIMASSIST_MAX_TARGETS];
++	float eye[3], aim[2], delta[2];
++	int numTargets = 0;
++	edict_t *self;
++	int i;
++
++	if( !Q3E_AimAssist_Level() || !SV_Active() || cls.key_dest != key_game || cl.paused || cl.intermission )
++		return;
++
++	if( svgame.hInstance != gameLib )
++	{
++		gameLib = svgame.hInstance;
++		isEnemy = gameLib ? (q3eAimAssistIsEnemy_t)COM_GetProcAddress( gameLib, "Q3E_AimAssistIsEnemy" ) : NULL;
++	}
++
++	self = EDICT_NUM( 1 ); // the local player
++	if( !self || self->free || self->v.health <= 0 )
++		return;
++
++	for( i = 1; i < svgame.numEntities && numTargets < Q3E_AIMASSIST_MAX_TARGETS; i++ )
++	{
++		edict_t *ent = EDICT_NUM( i );
++		int flags;
++
++		if( !ent || ent->free || ent == self )
++			continue;
++		flags = ent->v.flags;
++		if( !( flags & ( FL_MONSTER | FL_CLIENT )))
++			continue;
++		if( ent->v.health <= 0 || ent->v.deadflag != DEAD_NO || ent->v.solid == SOLID_NOT || ( ent->v.effects & EF_NODRAW ))
++			continue;
++		if( isEnemy ? !isEnemy( ent ) : !( flags & FL_MONSTER ))
++			continue;
++
++		targets[numTargets].origin[0] = ( ent->v.absmin[0] + ent->v.absmax[0] ) * 0.5f;
++		targets[numTargets].origin[1] = ( ent->v.absmin[1] + ent->v.absmax[1] ) * 0.5f;
++		targets[numTargets].origin[2] = ent->v.absmin[2] + ( ent->v.absmax[2] - ent->v.absmin[2] ) * 0.65f; // chest
++		targets[numTargets].radius = ( ent->v.absmax[0] - ent->v.absmin[0] ) * 0.5f;
++		numTargets++;
++	}
++	if( !numTargets )
++		return;
++
++	VectorAdd( self->v.origin, self->v.view_ofs, eye );
++	aim[0] = before[PITCH];
++	aim[1] = before[YAW];
++	delta[0] = cmd->viewangles[PITCH] - before[PITCH];
++	delta[1] = cmd->viewangles[YAW] - before[YAW];
++
++	if( Q3E_AimAssist_Apply( eye, aim, delta, host.frametime, targets, numTargets, CL_AimAssistVisible, self ))
++	{
++		cmd->viewangles[PITCH] = before[PITCH] + delta[0];
++		cmd->viewangles[YAW] = before[YAW] + delta[1];
++		VectorCopy( cmd->viewangles, cl.viewangles );
++	}
++}
++#endif
++
+ /*
+ =================
+ CL_CreateCmd
+@@ -649,6 +734,9 @@ static void CL_CreateCmd( void )
+ 	vec3_t    angles;
+ 	int       input_override;
+ 	int       i, ms;
++#ifdef _DIII4A //karin: gamepad aim assist
++	vec3_t    aimBefore;
++#endif
+ 
+ 	if( cls.state <= ca_connected || cls.state == ca_cinematic )
+ 		return;
+@@ -699,8 +787,15 @@ static void CL_CreateCmd( void )
+ 
+ 	active = (( cls.signon == SIGNONS ) && !cl.paused && !cls.demoplayback );
+ 	Platform_PreCreateMove();
++#ifdef _DIII4A //karin: gamepad aim assist
++	VectorCopy( cl.viewangles, aimBefore );
++#endif
+ 	clgame.dllFuncs.CL_CreateMove( host.frametime, cmd, active );
+ 	IN_EngineAppendMove( host.frametime, cmd, active );
++#ifdef _DIII4A //karin: gamepad aim assist
++	if( active )
++		CL_AimAssist( aimBefore, cmd );
++#endif
+ 
+ 	CL_PopPMStates();
+ 

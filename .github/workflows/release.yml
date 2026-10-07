@@ -68,6 +68,10 @@ jobs:
         with:
           submodules: true
 
+      # the submodules stay upstream's repositories; this fork's changes to them are patches
+      - name: Apply this fork's patches to the submodules
+        run: sh patches/apply.sh
+
       # The group's libraries are built again only when something they are made of changed: the
       # git trees of its folders, of the common ones and of the Gradle build, and its options.
       - name: Fingerprint
@@ -166,6 +170,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: true
+
+      # the submodules stay upstream's repositories; this fork's changes to them are patches
+      - name: Apply this fork's patches to the submodules
+        run: sh patches/apply.sh
 
       - name: Read the version
         id: version

@@ -1,0 +1,36 @@
+diff --git a/dlls/client.cpp b/dlls/client.cpp
+index fd03e6e..38cfdc1 100644
+--- a/dlls/client.cpp
++++ b/dlls/client.cpp
+@@ -1965,3 +1965,31 @@ int AllowLagCompensation( void )
+ {
+ 	return 1;
+ }
++
++#ifdef _DIII4A //karin: gamepad aim assist
++#include "monsters.h"
++
++/*
++================
++Q3E_AimAssistIsEnemy
++
++For the Xash3D engine's gamepad aim assist (engine/client/cl_main.c): whether this entity is hostile
++to the local player, a living monster that dislikes or hates them, or another player in deathmatch
++================
++*/
++extern "C" EXPORT int Q3E_AimAssistIsEnemy( edict_t *pent )
++{
++	CBaseEntity *pEntity = CBaseEntity::Instance( pent );
++	CBaseEntity *pPlayer = UTIL_PlayerByIndex( 1 );
++	CBaseMonster *pMonster;
++
++	if( !pEntity || !pPlayer || pEntity == pPlayer || !pEntity->IsAlive() )
++		return 0;
++
++	if( pEntity->IsPlayer() )
++		return g_pGameRules->IsMultiplayer() && g_pGameRules->PlayerRelationship( pPlayer, pEntity ) != GR_TEAMMATE;
++
++	pMonster = pEntity->MyMonsterPointer();
++	return pMonster && pMonster->IRelationship( pPlayer ) > R_NO;
++}
++#endif
