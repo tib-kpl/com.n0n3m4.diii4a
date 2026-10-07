@@ -20,7 +20,7 @@
 >
 > **Aide à la visée à la manette**
 > - Nouveau réglage « Aide à la visée » dans les réglages manette de l'app (désactivée, légère, moyenne, forte), pour RTCW, Quake 3, Jedi Outcast, Jedi Academy, Urban Terror, ET: Legacy, OpenMoHAA, DOOM 3, Quake 4 et Prey (et leurs mods). La vue ralentit sur un ennemi proche du viseur et s'attire un peu vers lui pendant qu'on vise. Elle se désactive dès qu'on tourne vite ou qu'on s'éloigne de la cible. Les alliés, les civils et les coéquipiers sont ignorés, et dans Jedi Knight elle ne joue pas avec le sabre.
-> - RealRTCW : sa propre aide à la visée (option du jeu `j_aimassist`) marche maintenant au stick droit. Sur Android, le stick arrive comme une souris et elle ne le voyait pas.
+> - RealRTCW et DOOM 3 BFG : leur propre aide à la visée (RealRTCW : Commandes > Aide à la visée ; BFG : Options de jeu > Aim Assist) marche maintenant au stick droit. Sur Android, le stick arrive comme une souris et elles ne le voyaient pas.
 >
 > **Son (tous les jeux qui passent par Oboe ou OpenAL Soft)**
 > - Le son suit la sortie audio : il passe sur le casque Bluetooth quand on le connecte, et revient sur la console quand on le déconnecte.
@@ -38,7 +38,7 @@
 > removes a grey noise flash during its level loads, makes the gamepad work the RTCW / RealRTCW menus (d-pad, A, B, LB/RB, smoother camera),
 > adds a gamepad aim assist (RTCW, Quake 3, Jedi Outcast / Academy, Urban Terror, ET: Legacy, OpenMoHAA, DOOM 3, Quake 4, Prey and their mods,
 > set in the app's controller settings),
-> makes RealRTCW's own aim assist work with the right stick,
+> makes RealRTCW's and DOOM 3 BFG's own aim assist work with the right stick,
 > makes the sound follow a Bluetooth headset being connected or disconnected, fixes a crash at start on recent kernels (#605)
 > and an `EGL_BAD_CONFIG` stop in Quake 4, reports why the app ended in `exit_report.txt`, and builds its own releases.
 > The download links below lead to the upstream builds, without these changes. This fork's own builds,

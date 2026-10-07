@@ -519,6 +519,18 @@ void idUsercmdGenLocal::MouseMove()
 	mx *= sensitivity.GetFloat();
 	my *= sensitivity.GetFloat();
 
+#ifdef __ANDROID__
+	// the aim assist's friction (Game Options > Aim Assist) for the right stick, which comes as mouse
+	// motion on Android: JoystickMove never sees it
+	idGame* aimAssistGame = common->Game();
+	if( aimAssistGame != NULL )
+	{
+		const float aimAssist = aimAssistGame->GetAimAssistSensitivity();
+		mx *= aimAssist;
+		my *= aimAssist;
+	}
+#endif
+
 	if( m_showMouseRate.GetBool() )
 	{
 		Sys_DebugPrintf( "[%3i %3i  = %5.1f %5.1f] ", mouseDx, mouseDy, mx, my );
