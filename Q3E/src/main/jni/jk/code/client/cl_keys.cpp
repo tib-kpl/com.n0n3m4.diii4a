@@ -1325,7 +1325,46 @@ CL_KeyEvent
 Called by the system for both key up and key down events
 ===================
 */
+#ifdef __ANDROID__
+/*
+===================
+CL_MenuPadKey
+
+The pad in the menus: its A and B buttons (A_JOY0, A_JOY1, which the menus ignore) are Enter and
+Escape there; its d-pad already comes as the arrows. What a key became when it went down is what
+goes up, even if the menu closed in between.
+===================
+*/
+static int CL_MenuPadKey( int key, qboolean down ) {
+	static int translated[MAX_KEYS];
+	int menuKey = key;
+
+	if ( key < 0 || key >= MAX_KEYS ) {
+		return key;
+	}
+	if ( !down ) {
+		if ( translated[key] ) {
+			menuKey = translated[key];
+			translated[key] = 0;
+		}
+		return menuKey;
+	}
+	if ( ( Key_GetCatcher( ) & KEYCATCH_UI ) && !( Key_GetCatcher( ) & KEYCATCH_CONSOLE ) ) {
+		switch ( key ) {
+		case A_JOY0: menuKey = A_ENTER; break;
+		case A_JOY1: menuKey = A_ESCAPE; break;
+		default: break;
+		}
+	}
+	translated[key] = ( menuKey != key ) ? menuKey : 0;
+	return menuKey;
+}
+#endif
+
 void CL_KeyEvent (int key, qboolean down, unsigned time) {
+#ifdef __ANDROID__
+	key = CL_MenuPadKey( key, down );
+#endif
 	if( down )
 		CL_KeyDownEvent( key, time );
 	else

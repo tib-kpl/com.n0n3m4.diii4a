@@ -11323,6 +11323,15 @@ void Menu_HandleKey(menuDef_t *menu, int key, qboolean down)
 		case A_CURSOR_UP:
 			Menu_SetPrevCursorItem(menu);
 			break;
+#ifdef __ANDROID__
+		// the pad's d-pad (the arrows): left / right move too when the item does not use them (some menus run across)
+		case A_CURSOR_LEFT:
+			Menu_SetPrevCursorItem(menu);
+			break;
+		case A_CURSOR_RIGHT:
+			Menu_SetNextCursorItem(menu);
+			break;
+#endif
 
 
 		case A_ESCAPE:
