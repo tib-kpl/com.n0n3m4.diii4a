@@ -27,6 +27,37 @@ GPLv3
 
 ----------------------------------------------------------------------------------
 
+> #### About this fork
+
+This is a fork of [glKarin/com.n0n3m4.diii4a](https://github.com/glKarin/com.n0n3m4.diii4a), based on **1.1.0harmattan73**. The arm64 APK is built by [release.yml](.github/workflows/release.yml) and published on this fork's [releases](https://github.com/tib-kpl/com.n0n3m4.diii4a/releases). Changes from upstream:
+
+**RealRTCW**
+* Updated from 5.4 to **5.44c**: the 5.44c data needs it, since its campaign menu calls `StartCampaign` / `loadCampaignArenas`. On Android, the new FBO / ARB post-processing is stubbed out for the OpenGL ES renderer, and FFmpeg 6 video playback is fixed.
+* Fixed the game not starting on Android: the OpenAL sound code is adapted to the 5.44c sound interface (`StartSoundVControl`, ambient loops).
+* **French translation**: menus, messages, items, secrets, notebook, subtitles, documents, briefings, credits and menu images. The menu images are made from the English ones by `translations/realrtcw/images/make_images.py`.
+* Language option in the game (`cl_language`). Translations are read from `lang/<code>/` in a pack (`zzz_*.pk3`) that the APK installs.
+* Fixed a grey noise flash during level loads: the main FBO is now cleared when it is created.
+
+**Gamepad (RTCW, RealRTCW)**
+* The d-pad, A and B work the menus (arrows, Enter, Escape) instead of the stick acting as a mouse pointer. This only applies in menus, so in game the d-pad still changes weapons.
+* RTCW: Enter and the pad's A / Start begin the game on the pregame screen.
+* LB/RB (weapon wheel, grenade) reach the game. Gamepad buttons now go straight to the game instead of through the Android view hierarchy, which was eating them.
+* Smoother right-stick camera: 60 fps cap on Android, `m_filter` on, sub-pixel motion kept.
+
+**Sound (all games using Oboe or OpenAL Soft)**
+* The sound follows the output device: when a Bluetooth headset is connected or disconnected, the audio stream is reopened on the new output. The stream now uses shared mode instead of exclusive.
+
+**Stability**
+* Fixed a crash at start of RTCW, RealRTCW, Quake 3, Urban Terror, OpenMoHAA and Skin Deep on recent kernels (for example Snapdragon 8 Gen 2), [#605](https://github.com/glKarin/com.n0n3m4.diii4a/issues/605). The bundled `getifaddrs` overflowed on interfaces with long hardware addresses, so libc's is used now (Android 7+).
+* EGL: when no config matches, multisampling is lowered too. Before, Quake 4 stopped with `EGL_BAD_CONFIG` at `r_multiSamples 16`.
+* When the app ends without being asked to, it says why and writes `exit_report.txt` in the game data folder, including the native crash dump.
+
+**Build (CI)**
+* [release.yml](.github/workflows/release.yml) builds every game as `android.yml` does (default "github" flavor, one build per engine group). The Source and idTech4 groups run on their own runners in parallel.
+* Each group has its own ccache. A group whose sources did not change is not rebuilt: its libraries are cached under a fingerprint of its git trees.
+
+----------------------------------------------------------------------------------
+
 > #### idTech4's feature 
 * Linux/Windows(MinGW/MSVC(without editor)) build
 * multi-threading renderer
