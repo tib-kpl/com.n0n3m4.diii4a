@@ -578,7 +578,8 @@ public class Q3EKeyCodes
         }
     }
 
-    // the current game's gamepad button map ("button:code"): its own one, else the one of all games
+    // the current game's gamepad button map ("button:code"): its own one, else its recommended layout
+    // (Q3EGamePadPresets), else the one of all games (from before the maps per game)
     public static Set<String> GetGamePadKeymapSet(Context context)
     {
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
@@ -586,9 +587,14 @@ public class Q3EKeyCodes
         Set<String> codeSet = null;
         if(null != game && !game.isEmpty())
             codeSet = preferences.getStringSet(Q3EPreference.GamePadKeymapKey(game), null);
-        if(null == codeSet)
-            codeSet = preferences.getStringSet(Q3EPreference.pref_harm_gamepad_keymap, new HashSet<>());
-        return codeSet;
+        if(null != codeSet && !codeSet.isEmpty())
+            return codeSet;
+        Set<String> preset = Q3EGamePadPresets.Get(game);
+        if(null != preset)
+            return preset;
+        if(null != codeSet) // reset, no layout: the defaults
+            return codeSet;
+        return preferences.getStringSet(Q3EPreference.pref_harm_gamepad_keymap, new HashSet<>());
     }
 
     // saved for the current game only (or for all games when there is none)

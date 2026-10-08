@@ -13,6 +13,8 @@ import com.karin.idTech4Amm.ControllerConfigActivity;
 import com.karin.idTech4Amm.R;
 import com.karin.idTech4Amm.lib.ContextUtility;
 import com.karin.idTech4Amm.widget.SelectPreference;
+import com.n0n3m4.q3e.Q3E;
+import com.n0n3m4.q3e.Q3EGamePadPresets;
 import com.n0n3m4.q3e.Q3EKeyCodes;
 import com.n0n3m4.q3e.Q3EPreference;
 import com.n0n3m4.q3e.Q3EUtils;
@@ -149,7 +151,10 @@ public class ControllerConfigPreference extends PreferenceFragment implements Pr
 
         for (String button : Q3EKeyCodes.CONTROLLER_BUTTONS) {
             preference = (SelectPreference)findPreference(Q3EPreference.pref_harm_gamepad_keymap + "_" + button);
-            defCode = Q3EKeyCodes.GetDefaultGamePadButtonCode(button);
+            // the game's recommended layout, else the raw pad button
+            defCode = Q3EGamePadPresets.Get(null != Q3E.q3ei ? Q3E.q3ei.game : null, button);
+            if(null == defCode)
+                defCode = Q3EKeyCodes.GetDefaultGamePadButtonCode(button);
             if(null != defCode)
             {
                 preference.setDefaultValue(defCode);
