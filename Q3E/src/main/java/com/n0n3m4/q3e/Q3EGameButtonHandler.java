@@ -172,7 +172,7 @@ class Q3EGameButtonHandler extends Q3EOnScreenButtonHandler
     // game (the d-pad already comes as the arrows there): 0 when the key stays as it is.
     // Only when the game reports a menu (STATE_MENU: the engines report only real ones, not loading
     // or in-game screens), never while loading. Only the games whose menus are worked with the keys:
-    // not the cursor menus of idTech 4, OpenMoHAA or Source (A may be the click there), nor RealRTCW,
+    // not the cursor menus of idTech 4, OpenMoHAA or Source (A may be the click there), nor RTCW and RealRTCW,
     // whose own pad handling does it
     private int MenuPadKey(int keyCode, KeyEvent event)
     {
@@ -191,7 +191,7 @@ class Q3EGameButtonHandler extends Q3EOnScreenButtonHandler
     private boolean HasKeyMenus()
     {
         Q3EInterface q = Q3E.q3ei;
-        return q != null && (q.isQ1 || q.isQ2 || q.isQ3 || q.isRTCW || q.isJA || q.isJO || q.isETW || q.isUrT
+        return q != null && (q.isQ1 || q.isQ2 || q.isQ3 || q.isJA || q.isJO || q.isETW || q.isUrT
                 || q.isFTEQW || q.isWolf3D || q.isSamTFE || q.isSamTSE || q.isDOOM);
     }
 
