@@ -428,6 +428,22 @@ public class GameLauncher extends Activity
 						.putBoolean(Q3EPreference.pref_harm_r_renderToolsMultithread, isChecked)
 						.commit();
 			}
+			else if (id == R.id.cb_r_fullSizeTextures)
+			{
+				if(Q3E.q3ei.IsIdTech4())
+				{
+					for(String cvar : Q3EInterface.FULL_SIZE_TEXTURES_CVARS)
+					{
+						if(isChecked)
+							SetProp_temp(cvar, 0);
+						else
+							RemoveProp_temp(cvar);
+					}
+				}
+				PreferenceManager.getDefaultSharedPreferences(GameLauncher.this).edit()
+						.putBoolean(Q3EPreference.pref_harm_r_fullSizeTextures, isChecked)
+						.commit();
+			}
 			else if (id == R.id.cb_r_autoAspectRatio)
 			{
 				int value = isChecked ? 1 : 0;
@@ -1813,6 +1829,8 @@ public class GameLauncher extends Activity
 //		SelectRadioGroup(V.rg_r_autoAspectRatio, mPrefs.getInt(Q3EPreference.pref_harm_r_autoAspectRatio, 1));
 		V.cb_r_autoAspectRatio.setChecked(autoAspectRatio > 0);
 		V.cb_r_autoAspectRatio.setOnCheckedChangeListener(m_checkboxChangeListener);
+		V.cb_r_fullSizeTextures.setChecked(mPrefs.getBoolean(Q3EPreference.pref_harm_r_fullSizeTextures, true));
+		V.cb_r_fullSizeTextures.setOnCheckedChangeListener(m_checkboxChangeListener);
 		boolean skipIntro = mPrefs.getBoolean(Q3EPreference.pref_harm_skip_intro, false);
 		V.skip_intro.setChecked(skipIntro);
 		if (skipIntro && (Q3E.q3ei.IsSupportSkipIntro()))
@@ -3104,6 +3122,7 @@ public class GameLauncher extends Activity
 		mEdtr.putBoolean(Q3EPreference.pref_harm_r_occlusionCulling, V.cb_r_occlusionCulling.isChecked());
 //		mEdtr.putInt(Q3EPreference.pref_harm_r_autoAspectRatio, GetRadioGroupSelectIndex(V.rg_r_autoAspectRatio));
 		mEdtr.putInt(Q3EPreference.pref_harm_r_autoAspectRatio, V.cb_r_autoAspectRatio.isChecked() ? 1 : 0);
+		mEdtr.putBoolean(Q3EPreference.pref_harm_r_fullSizeTextures, V.cb_r_fullSizeTextures.isChecked());
 		mEdtr.putBoolean(PreferenceKey.COLLAPSE_MODS, V.collapse_mods.isChecked());
 
 		mEdtr.putBoolean(Q3EPreference.pref_harm_zdoom_load_lights_pk3, V.zdoom_load_lights_pk3.isChecked());
@@ -4929,6 +4948,7 @@ public class GameLauncher extends Activity
 		public EditText launcher_tab2_gyro_dead_zone;
         public CheckBox auto_quick_load;
 		public CheckBox cb_r_autoAspectRatio;
+		public CheckBox cb_r_fullSizeTextures;
         public RadioGroup rg_fs_preygame;
         public CheckBox multithreading;
         public RadioGroup rg_s_driver;
@@ -5207,6 +5227,7 @@ public class GameLauncher extends Activity
 			edt_harm_r_stencilShadowAlpha = findViewById(R.id.edt_harm_r_stencilShadowAlpha);
 			//rg_r_autoAspectRatio = findViewById(R.id.rg_r_autoAspectRatio);
 			cb_r_autoAspectRatio = findViewById(R.id.cb_r_autoAspectRatio);
+			cb_r_fullSizeTextures = findViewById(R.id.cb_r_fullSizeTextures);
 			cb_stencilShadowCombine = findViewById(R.id.cb_stencilShadowCombine);
 			edt_harm_r_shadowMapAlpha = findViewById(R.id.edt_harm_r_shadowMapAlpha);
 			launcher_fs_game_cvar = findViewById(R.id.launcher_fs_game_cvar);

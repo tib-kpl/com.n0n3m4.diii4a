@@ -328,6 +328,7 @@ public final class Q3EPreference
     public static final String pref_harm_r_stencilShadowSoft          = "q3e_harm_r_stencilShadowSoft"; //k
     public static final String pref_harm_r_stencilShadowCombine       = "q3e_harm_r_stencilShadowCombine"; //k
     public static final String pref_harm_r_autoAspectRatio            = "q3e_harm_r_autoAspectRatio"; //k
+    public static final String pref_harm_r_fullSizeTextures           = "harm_r_fullSizeTextures"; // idTech4: no texture downsizing
     public static final String pref_harm_r_useHighPrecision           = "q3e_harm_r_useHighPrecision"; //k
     public static final String pref_harm_r_renderToolsMultithread     = "q3e_harm_r_renderToolsMultithread"; //k
     public static final String pref_scrres_scheme                     = "harm_q3e_scrres";

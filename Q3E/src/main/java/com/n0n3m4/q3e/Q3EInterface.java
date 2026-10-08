@@ -1116,6 +1116,11 @@ public class Q3EInterface
 		app_storage_path = Q3EContextUtils.GetAppStoragePath(context, null);
 	}
 
+	// idTech4: the cvars that downsize the textures, set to 0 for full size textures (Q3EPreference.pref_harm_r_fullSizeTextures)
+	public static final String[] FULL_SIZE_TEXTURES_CVARS = {
+			"image_downSize", "image_ignoreHighQuality", "image_downSizeBump", "image_downSizeSpecular",
+	};
+
 	public String MakeTempBaseCommand(Context context)
 	{
 		SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
@@ -1125,6 +1130,12 @@ public class Q3EInterface
 			int autoAspectRatio = preferences.getInt(Q3EPreference.pref_harm_r_autoAspectRatio, 1);
 			if(autoAspectRatio > 0)
 				extraCommand = GetGameCommandEngine(extraCommand).SetProp("harm_r_autoAspectRatio", autoAspectRatio).toString();
+			// textures (menus' too) at their full size, whatever the game's config or its quality preset says
+			if(preferences.getBoolean(Q3EPreference.pref_harm_r_fullSizeTextures, true))
+			{
+				for(String cvar : FULL_SIZE_TEXTURES_CVARS)
+					extraCommand = GetGameCommandEngine(extraCommand).SetProp(cvar, 0).toString();
+			}
 		}
 
 		if ((IsSupportSkipIntro()) && preferences.getBoolean(Q3EPreference.pref_harm_skip_intro, false))

@@ -10,4 +10,5 @@
         <item>Moyenne</item>
         <item>Forte</item>
     </string-array>
+    <string name="full_size_textures">Textures en taille réelle, menus compris (image_downSize 0, quelle que soit la qualité vidéo du jeu)</string>
 </resources>

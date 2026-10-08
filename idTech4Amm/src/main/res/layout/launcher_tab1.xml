@@ -956,6 +956,13 @@
                     android:text="@string/automatic_setup_aspect_ratio_harm_r_autoaspectratio" />
 
                 <CheckBox
+                    android:id="@+id/cb_r_fullSizeTextures"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:text="@string/full_size_textures" />
+
+                <CheckBox
                         android:id="@+id/cb_gui_useD3BFGFont"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
