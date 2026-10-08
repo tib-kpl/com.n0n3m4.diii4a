@@ -803,6 +803,9 @@ void idUsercmdGenLocal::MouseMove(void)
 	mouseDy = 0;
 
 	if (!strafeMx && !strafeMy) {
+#ifdef __ANDROID__
+		UsercmdGen_AimAssist(aimBefore, viewangles); // the tracking also works without look input
+#endif
 		return;
 	}
 

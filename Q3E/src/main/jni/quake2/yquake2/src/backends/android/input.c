@@ -330,11 +330,11 @@ IN_Move(usercmd_t *cmd)
 		}
 
 		mouse_x = mouse_y = 0;
+	}
 
 #ifdef __ANDROID__
-		IN_AimAssist(aimBefore);
+	IN_AimAssist(aimBefore); /* also without look input, for the tracking */
 #endif
-	}
 }
 
 /* ------------------------------------------------------------------ */

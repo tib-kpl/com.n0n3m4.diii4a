@@ -3,23 +3,27 @@
  *
  * The launcher sets the level in the environment variable Q3E_AIM_ASSIST (0 off, 1 light, 2 medium,
  * 3 strong), from the controller settings. The right stick reaches the engines as mouse motion, so the
- * assist works on the look delta of a frame:
- *   - friction: the look slows down while the crosshair is on or near an enemy
- *   - magnet: while the player is aiming, the view is pulled a little toward that enemy
- * A fast turn, or a move away from the target, disengages it, so it never feels glued.
+ * assist works on the look delta of a frame, as console shooters do:
+ *   - friction: the look slows down while the crosshair is on an enemy
+ *   - magnet: while the player aims, the view is pulled a little toward an enemy near the crosshair
+ *   - tracking (adhesion): while the crosshair is on an enemy, the view follows them as the player or
+ *     they move, even without look input
+ * A fast turn, or a move away from the target, disengages it, so it never feels glued. It never turns
+ * the view toward an enemy away from the crosshair.
  *
- * Each engine gives its enemies (aim point, radius) and a line of sight test:
+ * Each engine gives its enemies (aim point, radius) and a line of sight test, every frame (also
+ * without look input, for the tracking):
  *
  *   float aim[2] = { pitch, yaw };     // view angles before this frame's look input (degrees)
- *   float delta[2] = { dpitch, dyaw }; // this frame's look input (degrees)
+ *   float delta[2] = { dpitch, dyaw }; // this frame's look input (degrees), zero without any
  *   Q3E_AimAssist_Apply(eye, aim, delta, dt, targets, numTargets, visible, user);
  *   // then apply delta instead of the original input
  *
  * Angles follow the Quake convention: yaw counterclockwise from +X, pitch positive looking down.
  *
  * Every 10 seconds of play with the assist on, a line goes to stdout (stdout.txt in the game folder):
- * the frames with look input and enemies given, those with one in the assist zone, with one visible
- * there, and the look speed, so that a game where it does nothing can be told why.
+ * the frames with enemies given, those with one in the assist zone, with one visible there, those
+ * tracking, and the look speed, so that a game where it does nothing can be told why.
  */
 #ifndef _Q3E_AIMASSIST_H
 #define _Q3E_AIMASSIST_H
@@ -50,13 +54,14 @@ typedef struct
     float slowdown; // look slowdown on target, 0..1
     float magnet; // share of the angle to the target pulled per frame, at most turnRate
     float turnRate; // max pull, degrees per second
+    float tracking; // share of the target's move across the view that the view follows
 } q3e_aimAssistParms_t;
 
 static const q3e_aimAssistParms_t q3e_aimAssistLevels[4] = {
-    { 0.0f, 0.0f, 0.0f },
-    { 0.35f, 0.30f, 120.0f }, // light
-    { 0.55f, 0.50f, 200.0f }, // medium
-    { 0.70f, 0.70f, 300.0f }, // strong
+    { 0.0f, 0.0f, 0.0f, 0.0f },
+    { 0.35f, 0.30f, 120.0f, 0.45f }, // light
+    { 0.55f, 0.50f, 200.0f, 0.70f }, // medium
+    { 0.70f, 0.70f, 300.0f, 0.90f }, // strong
 };
 
 #define Q3E_AIMASSIST_BREAKOUT_SPEED 540.0f // degrees per second of look input: above it the player turns, no assist
@@ -65,6 +70,8 @@ static const q3e_aimAssistParms_t q3e_aimAssistLevels[4] = {
 #define Q3E_AIMASSIST_MIN_CONE 8.0f // degrees: far enemies are a few degrees wide, the zone must not be (Jedi Outcast: 2.5 did nothing)
 #define Q3E_AIMASSIST_MAX_CONE 15.0f // degrees
 #define Q3E_AIMASSIST_FRICTION_ZONE 0.4f // the slowdown is in this inner share of the zone, the pull in all of it
+#define Q3E_AIMASSIST_TRACKING_ZONE 0.5f // the tracking is in this inner share of the zone
+#define Q3E_AIMASSIST_TRACKING_MAX_STEP 6.0f // degrees per frame: a bigger move of the target is another one, or a teleport
 #define Q3E_AIMASSIST_MIN_STRENGTH 0.25f // at the edge of the zone
 #define Q3E_AIMASSIST_MIN_SCALE 0.4f // slowest look on target, share of the input
 #define Q3E_AIMASSIST_REPORT_SECONDS 10
@@ -97,12 +104,21 @@ static float Q3E_AimAssist_Normalize180(float angle)
 static struct
 {
     time_t since;
-    int frames; // with look input and enemies given
+    int frames; // with enemies given
+    int aiming; // ... and look input
     int enemies; // given in those frames
     int inZone; // frames with an enemy in the assist zone
     int visible; // ... and visible
+    int tracking; // frames following an enemy
     float speed; // sum of the look speeds
 } q3e_aimAssistStats;
+
+// the enemy followed last frame: its direction from the eye (absolute angles)
+static struct
+{
+    int valid;
+    float pitch, yaw;
+} q3e_aimAssistTrack;
 
 static void Q3E_AimAssist_Report(void)
 {
@@ -114,17 +130,18 @@ static void Q3E_AimAssist_Report(void)
         return;
     if(q3e_aimAssistStats.frames)
     {
-        printf("Q3E aim assist: %d frames aiming, %.1f enemies given on average, %d with one in the zone, %d with it visible (assisted), look speed %.0f deg/s on average\n",
-               q3e_aimAssistStats.frames, (float)q3e_aimAssistStats.enemies / q3e_aimAssistStats.frames,
-               q3e_aimAssistStats.inZone, q3e_aimAssistStats.visible, q3e_aimAssistStats.speed / q3e_aimAssistStats.frames);
+        printf("Q3E aim assist: %d frames with enemies (%d aiming), %.1f enemies on average, %d with one in the zone, %d with it visible, %d tracking, look speed %.0f deg/s on average while aiming\n",
+               q3e_aimAssistStats.frames, q3e_aimAssistStats.aiming, (float)q3e_aimAssistStats.enemies / q3e_aimAssistStats.frames,
+               q3e_aimAssistStats.inZone, q3e_aimAssistStats.visible, q3e_aimAssistStats.tracking,
+               q3e_aimAssistStats.aiming ? q3e_aimAssistStats.speed / q3e_aimAssistStats.aiming : 0.0f);
     }
     memset(&q3e_aimAssistStats, 0, sizeof(q3e_aimAssistStats));
     q3e_aimAssistStats.since = now;
 }
 
 /*
- * aim: pitch, yaw before this frame's input; delta: this frame's input (pitch, yaw), changed in place.
- * Returns 1 when a target was found.
+ * aim: pitch, yaw before this frame's input; delta: this frame's input (pitch, yaw), zero without
+ * any, changed in place. Returns 1 when it changed delta.
  */
 static int Q3E_AimAssist_Apply(const float eye[3], const float aim[2], float delta[2], float dt,
                                const q3e_aimTarget_t *targets, int numTargets, q3e_aimVisible_f visible, void *user)
@@ -132,34 +149,44 @@ static int Q3E_AimAssist_Apply(const float eye[3], const float aim[2], float del
     const q3e_aimAssistParms_t *parms;
     float inLen, speed, relief, escape;
     float bestErr[2] = { 0.0f, 0.0f };
+    float bestDir[2] = { 0.0f, 0.0f };
     float bestStrength = 0.0f;
     float bestAngle = 1e9f;
     float bestCone = 1.0f;
     int inZone = 0;
+    int changed = 0;
     int i;
 
     int level = Q3E_AimAssist_Level();
     if(level <= 0 || numTargets <= 0 || dt <= 0.0f)
+    {
+        q3e_aimAssistTrack.valid = 0;
         return 0;
+    }
     parms = &q3e_aimAssistLevels[level];
 
     inLen = sqrtf(delta[0] * delta[0] + delta[1] * delta[1]);
-    if(inLen <= 0.0f)
-        return 0; // only while the player aims
     speed = inLen / dt;
 
     Q3E_AimAssist_Report();
     q3e_aimAssistStats.frames++;
     q3e_aimAssistStats.enemies += numTargets;
-    q3e_aimAssistStats.speed += speed;
+    if(inLen > 0.0f)
+    {
+        q3e_aimAssistStats.aiming++;
+        q3e_aimAssistStats.speed += speed;
+    }
 
     if(speed >= Q3E_AIMASSIST_BREAKOUT_SPEED)
+    {
+        q3e_aimAssistTrack.valid = 0;
         return 0;
+    }
 
     for(i = 0; i < numTargets; i++)
     {
         const q3e_aimTarget_t *t = &targets[i];
-        float dir[3], flat, dist, errYaw, errPitch, angle, cone;
+        float dir[3], flat, dist, dirYaw, dirPitch, errYaw, errPitch, angle, cone;
 
         dir[0] = t->origin[0] - eye[0];
         dir[1] = t->origin[1] - eye[1];
@@ -169,8 +196,10 @@ static int Q3E_AimAssist_Apply(const float eye[3], const float aim[2], float del
         if(dist < 1.0f || dist > Q3E_AIMASSIST_MAX_DISTANCE)
             continue;
 
-        errYaw = Q3E_AimAssist_Normalize180(atan2f(dir[1], dir[0]) * (180.0f / (float)M_PI) - aim[1]);
-        errPitch = Q3E_AimAssist_Normalize180(-atan2f(dir[2], flat) * (180.0f / (float)M_PI) - aim[0]);
+        dirYaw = atan2f(dir[1], dir[0]) * (180.0f / (float)M_PI);
+        dirPitch = -atan2f(dir[2], flat) * (180.0f / (float)M_PI);
+        errYaw = Q3E_AimAssist_Normalize180(dirYaw - aim[1]);
+        errPitch = Q3E_AimAssist_Normalize180(dirPitch - aim[0]);
         angle = sqrtf(errYaw * errYaw + errPitch * errPitch);
 
         cone = atan2f(t->radius * Q3E_AIMASSIST_CONE_SCALE, dist) * (180.0f / (float)M_PI);
@@ -190,11 +219,16 @@ static int Q3E_AimAssist_Apply(const float eye[3], const float aim[2], float del
         bestStrength = Q3E_AIMASSIST_MIN_STRENGTH + (1.0f - Q3E_AIMASSIST_MIN_STRENGTH) * (1.0f - angle / cone);
         bestErr[0] = errPitch;
         bestErr[1] = errYaw;
+        bestDir[0] = dirPitch;
+        bestDir[1] = dirYaw;
     }
 
     q3e_aimAssistStats.inZone += inZone;
     if(bestStrength <= 0.0f)
+    {
+        q3e_aimAssistTrack.valid = 0;
         return 0;
+    }
     q3e_aimAssistStats.visible++;
 
     // weaker only as the input nears a fast turn
@@ -203,7 +237,7 @@ static int Q3E_AimAssist_Apply(const float eye[3], const float aim[2], float del
 
     // moving away from the target fades the assist out
     escape = 1.0f;
-    if(bestAngle > 0.001f)
+    if(inLen > 0.0f && bestAngle > 0.001f)
     {
         float align = (delta[0] * bestErr[0] + delta[1] * bestErr[1]) / (inLen * bestAngle); // -1 away .. +1 toward
         if(align < 0.0f)
@@ -214,7 +248,34 @@ static int Q3E_AimAssist_Apply(const float eye[3], const float aim[2], float del
         }
     }
     if(escape <= 0.0f)
-        return 1;
+    {
+        q3e_aimAssistTrack.valid = 0;
+        return 0;
+    }
+
+    // tracking: follow the target's move across the view since last frame (the player's or theirs)
+    if(q3e_aimAssistTrack.valid && bestAngle < bestCone * Q3E_AIMASSIST_TRACKING_ZONE)
+    {
+        float movePitch = Q3E_AimAssist_Normalize180(bestDir[0] - q3e_aimAssistTrack.pitch);
+        float moveYaw = Q3E_AimAssist_Normalize180(bestDir[1] - q3e_aimAssistTrack.yaw);
+
+        if(fabsf(movePitch) < Q3E_AIMASSIST_TRACKING_MAX_STEP && fabsf(moveYaw) < Q3E_AIMASSIST_TRACKING_MAX_STEP &&
+           (movePitch != 0.0f || moveYaw != 0.0f))
+        {
+            float follow = parms->tracking * escape * relief;
+            delta[0] += movePitch * follow;
+            delta[1] += moveYaw * follow;
+            q3e_aimAssistStats.tracking++;
+            changed = 1;
+        }
+    }
+    q3e_aimAssistTrack.valid = 1;
+    q3e_aimAssistTrack.pitch = bestDir[0];
+    q3e_aimAssistTrack.yaw = bestDir[1];
+
+    // friction and magnet, while the player aims
+    if(inLen <= 0.0f)
+        return changed;
 
     // friction, near the target only: slowing down the approach from the edge of the zone would feel like drag
     {

@@ -1094,6 +1094,9 @@ void CL_MouseMove(usercmd_t *cmd)
 
 	if (mx == 0.f && my == 0.f)
 	{
+#ifdef __ANDROID__
+		CL_AimAssist(aimBefore); // the tracking also works without look input
+#endif
 		return;
 	}
 

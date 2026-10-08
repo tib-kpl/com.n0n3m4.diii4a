@@ -559,7 +559,12 @@ void CL_MouseMove(usercmd_t *cmd)
 	cl.mouseDy[cl.mouseIndex] = 0;
 
 	if (mx == 0.0f && my == 0.0f)
+	{
+#ifdef __ANDROID__
+		CL_AimAssist(aimBefore); // the tracking also works without look input
+#endif
 		return;
+	}
 	
 	if (cl_mouseAccel->value != 0.0f)
 	{
