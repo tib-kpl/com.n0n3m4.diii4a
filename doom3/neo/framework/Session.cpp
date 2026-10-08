@@ -2892,6 +2892,11 @@ bool idSessionLocal::LoadGame(const char *saveName)
 
 		ExecuteMapChange();
 
+#ifdef _RAVEN //k: the loading screen waits for a click (pause when finished loading): it must get the events, as after a new game, or nothing goes on
+		if (insideExecuteMapChange && FinishedLoading())
+			SetGUI(guiLoading, NULL);
+		else
+#endif
 		SetGUI(NULL, NULL);
 	}
 

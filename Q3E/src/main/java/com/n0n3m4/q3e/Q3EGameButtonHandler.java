@@ -165,6 +165,8 @@ class Q3EGameButtonHandler extends Q3EOnScreenButtonHandler
             padMenuKeys.put(keyCode, menuKey);
             qKeyCode = menuKey;
         }
+        else
+            padMenuKeys.delete(keyCode); // a release lost in a menu must not turn this key's release into Enter / Escape
         return eventControl.OnKeyDown(qKeyCode, event, getCharacter(keyCode, event));
     }
 
