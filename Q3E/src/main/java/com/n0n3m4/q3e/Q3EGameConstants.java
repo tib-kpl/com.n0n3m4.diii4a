@@ -393,7 +393,7 @@ public final class Q3EGameConstants
     //public static final String TDM_2_12_GLSL_SHADER_VERSION   = "2.12.6"; // 6: fix a integer to float convert
     public static final String RBDOOM3BFG_HLSL_SHADER_VERSION = GAME_VERSION_DOOM3BFG + ".1"; // 1: init
     public static final String ZDOOM_VERSION                  = GAME_VERSION_ZDOOM + ".1"; // 1: init
-    public static final String XASH3D_VERSION                 = GAME_VERSION_XASH3D + ".5"; // 1: include cs16 resource
+    public static final String XASH3D_VERSION                 = GAME_VERSION_XASH3D + ".6"; // 1: include cs16 resource; 6: French menu (resource/mainui_french.txt in extras.pk3, from translations/xash3d)
     public static final String SOURCE_ENGINE_VERSION          = GAME_VERSION_SOURCE + ".1"; // 1: init
     public static final String ETW_VERSION                    = GAME_VERSION_ETW + ".1"; // 1: init
     public static final String WOLF3D_VERSION                 = GAME_VERSION_WOLF3D + ".2"; // 1: unuse libretro

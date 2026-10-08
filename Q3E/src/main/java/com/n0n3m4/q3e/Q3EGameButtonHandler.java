@@ -192,7 +192,7 @@ class Q3EGameButtonHandler extends Q3EOnScreenButtonHandler
     {
         Q3EInterface q = Q3E.q3ei;
         return q != null && (q.isQ1 || q.isQ2 || q.isQ3 || q.isJA || q.isJO || q.isETW || q.isUrT
-                || q.isFTEQW || q.isWolf3D || q.isSamTFE || q.isSamTSE || q.isDOOM);
+                || q.isFTEQW || q.isWolf3D || q.isSamTFE || q.isSamTSE || q.isDOOM || q.isXash3D);
     }
 
     @Override
