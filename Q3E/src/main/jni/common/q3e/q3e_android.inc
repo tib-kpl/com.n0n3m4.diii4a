@@ -670,11 +670,24 @@ void Q3E_Analog(int enable, float x, float y)
     analogy = y;
 }
 
+// The Oboe audio stream (common/oboeaudio) of the engines that use it: stopped while the app is paused, or
+// the game paused, it plays the last bit of the mixing buffer over and over. Weak: not every engine has it
+#ifdef __cplusplus
+extern "C" {
+#endif
+void Q3E_Oboe_Stop(void) __attribute__((weak));
+void Q3E_Oboe_Start(void) __attribute__((weak));
+#ifdef __cplusplus
+}
+#endif
+
 // View paused
 void Q3E_OnPause(void)
 {
     if(Q3E_IS_INITIALIZED)
         q3e_paused = Q3E_TRUE;
+    if(Q3E_Oboe_Stop)
+        Q3E_Oboe_Stop();
 }
 
 // View resume
@@ -682,6 +695,8 @@ void Q3E_OnResume(void)
 {
     if(Q3E_IS_INITIALIZED)
         q3e_paused = Q3E_FALSE;
+    if(Q3E_Oboe_Start)
+        Q3E_Oboe_Start();
 }
 
 // Request exit
