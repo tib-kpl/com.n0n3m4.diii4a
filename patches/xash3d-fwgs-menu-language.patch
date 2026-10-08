@@ -31,3 +31,23 @@ index 425ba72..a559a8f 100644
  	image.Load( pic );
  }
  
+diff --git a/3rdparty/mainui/controls/PicButton.cpp b/3rdparty/mainui/controls/PicButton.cpp
+index f2ae19c..6d485a9 100644
+--- a/3rdparty/mainui/controls/PicButton.cpp
++++ b/3rdparty/mainui/controls/PicButton.cpp
+@@ -401,6 +401,15 @@ void CMenuPicButton::SetPicture( EDefaultBtns ID )
+ 
+ void CMenuPicButton::SetPicture( const char *filename, int hk )
+ {
++#ifdef _DIII4A //karin: these pictures have the English labels drawn in too, and are sized after btns_main.bmp, not loaded in another language: draw the translated text instead
++	const char *language = EngFuncs::GetCvarString( "ui_language" );
++	if( language[0] && strcmp( language, "english" ))
++	{
++		hPic = 0;
++		hotkey = hk;
++		return;
++	}
++#endif
+ 	hPic = EngFuncs::PIC_Load( filename );
+ 	hotkey = hk;
+ }

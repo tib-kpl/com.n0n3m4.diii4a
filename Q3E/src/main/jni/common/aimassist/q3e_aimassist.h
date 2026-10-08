@@ -72,6 +72,7 @@ static const q3e_aimAssistParms_t q3e_aimAssistLevels[4] = {
 #define Q3E_AIMASSIST_FRICTION_ZONE 0.4f // the slowdown is in this inner share of the zone, the pull in all of it
 #define Q3E_AIMASSIST_TRACKING_ZONE 0.5f // the tracking is in this inner share of the zone
 #define Q3E_AIMASSIST_TRACKING_MAX_STEP 6.0f // degrees per frame: a bigger move of the target is another one, or a teleport
+#define Q3E_AIMASSIST_TRACKING_SMOOTH 18.0f // per second: how fast the view catches up with the target's move (smoothing)
 #define Q3E_AIMASSIST_MIN_STRENGTH 0.25f // at the edge of the zone
 #define Q3E_AIMASSIST_MIN_SCALE 0.4f // slowest look on target, share of the input
 #define Q3E_AIMASSIST_REPORT_SECONDS 10
@@ -118,7 +119,14 @@ static struct
 {
     int valid;
     float pitch, yaw;
+    float pending[2]; // tracking still to apply (pitch, yaw): the target moves at the server's rate, the view follows smoothly
 } q3e_aimAssistTrack;
+
+static void Q3E_AimAssist_Untrack(void)
+{
+    q3e_aimAssistTrack.valid = 0;
+    q3e_aimAssistTrack.pending[0] = q3e_aimAssistTrack.pending[1] = 0.0f;
+}
 
 static void Q3E_AimAssist_Report(void)
 {
@@ -160,7 +168,7 @@ static int Q3E_AimAssist_Apply(const float eye[3], const float aim[2], float del
     int level = Q3E_AimAssist_Level();
     if(level <= 0 || numTargets <= 0 || dt <= 0.0f)
     {
-        q3e_aimAssistTrack.valid = 0;
+        Q3E_AimAssist_Untrack();
         return 0;
     }
     parms = &q3e_aimAssistLevels[level];
@@ -179,7 +187,7 @@ static int Q3E_AimAssist_Apply(const float eye[3], const float aim[2], float del
 
     if(speed >= Q3E_AIMASSIST_BREAKOUT_SPEED)
     {
-        q3e_aimAssistTrack.valid = 0;
+        Q3E_AimAssist_Untrack();
         return 0;
     }
 
@@ -226,7 +234,7 @@ static int Q3E_AimAssist_Apply(const float eye[3], const float aim[2], float del
     q3e_aimAssistStats.inZone += inZone;
     if(bestStrength <= 0.0f)
     {
-        q3e_aimAssistTrack.valid = 0;
+        Q3E_AimAssist_Untrack();
         return 0;
     }
     q3e_aimAssistStats.visible++;
@@ -249,7 +257,7 @@ static int Q3E_AimAssist_Apply(const float eye[3], const float aim[2], float del
     }
     if(escape <= 0.0f)
     {
-        q3e_aimAssistTrack.valid = 0;
+        Q3E_AimAssist_Untrack();
         return 0;
     }
 
@@ -259,16 +267,29 @@ static int Q3E_AimAssist_Apply(const float eye[3], const float aim[2], float del
         float movePitch = Q3E_AimAssist_Normalize180(bestDir[0] - q3e_aimAssistTrack.pitch);
         float moveYaw = Q3E_AimAssist_Normalize180(bestDir[1] - q3e_aimAssistTrack.yaw);
 
-        if(fabsf(movePitch) < Q3E_AIMASSIST_TRACKING_MAX_STEP && fabsf(moveYaw) < Q3E_AIMASSIST_TRACKING_MAX_STEP &&
-           (movePitch != 0.0f || moveYaw != 0.0f))
+        if(fabsf(movePitch) < Q3E_AIMASSIST_TRACKING_MAX_STEP && fabsf(moveYaw) < Q3E_AIMASSIST_TRACKING_MAX_STEP)
         {
             float follow = parms->tracking * escape * relief;
-            delta[0] += movePitch * follow;
-            delta[1] += moveYaw * follow;
-            q3e_aimAssistStats.tracking++;
+            float share;
+
+            // the target's position changes at the server's rate (20 Hz in Jedi Knight), the frames come
+            // faster: follow its move over the next frames, not all at once, or the view jerks
+            q3e_aimAssistTrack.pending[0] += movePitch * follow;
+            q3e_aimAssistTrack.pending[1] += moveYaw * follow;
+            share = 1.0f - expf(-dt * Q3E_AIMASSIST_TRACKING_SMOOTH);
+            delta[0] += q3e_aimAssistTrack.pending[0] * share;
+            delta[1] += q3e_aimAssistTrack.pending[1] * share;
+            q3e_aimAssistTrack.pending[0] *= 1.0f - share;
+            q3e_aimAssistTrack.pending[1] *= 1.0f - share;
+            if(movePitch != 0.0f || moveYaw != 0.0f)
+                q3e_aimAssistStats.tracking++;
             changed = 1;
         }
+        else
+            q3e_aimAssistTrack.pending[0] = q3e_aimAssistTrack.pending[1] = 0.0f; // another target
     }
+    else
+        q3e_aimAssistTrack.pending[0] = q3e_aimAssistTrack.pending[1] = 0.0f;
     q3e_aimAssistTrack.valid = 1;
     q3e_aimAssistTrack.pitch = bestDir[0];
     q3e_aimAssistTrack.yaw = bestDir[1];
