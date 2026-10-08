@@ -624,5 +624,5 @@
 
     <string name="exit_report_title">The app stopped</string>
     <string name="exit_report_message">The app\'s process ended without being asked to (a game crashed, or the system closed it).\n\nReason: %1$s\n%2$s\n\nThe details are in: %3$s</string>
-    <string name="full_size_textures">Full size textures, menus too (image_downSize 0, whatever the game's video quality)</string>
+    <string name="full_size_textures">Full size textures, menus too (image_downSize 0, whatever the video quality of the game)</string>
 </resources>
