@@ -8,7 +8,6 @@ import android.opengl.GLES11;
 import android.opengl.GLSurfaceView;
 import android.preference.PreferenceManager;
 import android.util.Log;
-import android.util.SparseIntArray;
 import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
@@ -39,8 +38,6 @@ import javax.microedition.khronos.opengles.GL11;
 class Q3EGameButtonHandler extends Q3EOnScreenButtonHandler
 {
     private final TouchListener[] handle_elements = new TouchListener[10]; // handled elements in every touch event
-    // the game key a pad button went down as, for its release (see MenuPadKey)
-    private final SparseIntArray padMenuKeys = new SparseIntArray();
     private final ArrayList<TouchListener> touch_elements = new ArrayList<>(0);
     private final ArrayList<Paintable> paint_elements = new ArrayList<>(0);
 
@@ -140,12 +137,6 @@ class Q3EGameButtonHandler extends Q3EOnScreenButtonHandler
             Q3E.ToggleToolbar(false);
         }
         int qKeyCode = Q3EKeyCodes.convertKeyCode(keyCode, event.getUnicodeChar(0), event);
-        int menuKey = padMenuKeys.get(keyCode, 0);
-        if(menuKey != 0)
-        {
-            padMenuKeys.delete(keyCode);
-            qKeyCode = menuKey;
-        }
         return eventControl.OnKeyUp(qKeyCode, event, getCharacter(keyCode, event));
     }
 
@@ -159,26 +150,7 @@ class Q3EGameButtonHandler extends Q3EOnScreenButtonHandler
             return true;
         }
         int qKeyCode = Q3EKeyCodes.convertKeyCode(keyCode, event.getUnicodeChar(0), event);
-        int menuKey = MenuPadKey(keyCode, event);
-        if(menuKey != 0)
-        {
-            padMenuKeys.put(keyCode, menuKey);
-            qKeyCode = menuKey;
-        }
         return eventControl.OnKeyDown(qKeyCode, event, getCharacter(keyCode, event));
-    }
-
-    // In the game's menus, the pad's A and B are Enter and Escape, whatever key they are mapped to in
-    // game (the d-pad already comes as the arrows there): 0 when the key stays as it is
-    private int MenuPadKey(int keyCode, KeyEvent event)
-    {
-        if(Q3E.callbackObj == null || Q3E.callbackObj.notinmenu || !Q3EControllerControl.IsGamePadKeyEvent(event))
-            return 0;
-        if(keyCode == KeyEvent.KEYCODE_BUTTON_A)
-            return Q3EKeyCodes.KeyCodes.K_ENTER;
-        if(keyCode == KeyEvent.KEYCODE_BUTTON_B)
-            return Q3EKeyCodes.KeyCodes.K_ESCAPE;
-        return 0;
     }
 
     @Override
