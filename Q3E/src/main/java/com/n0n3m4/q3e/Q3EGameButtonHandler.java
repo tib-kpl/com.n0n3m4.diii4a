@@ -46,6 +46,8 @@ class Q3EGameButtonHandler extends Q3EOnScreenButtonHandler
 
     // map volume key function
     private boolean mapvol = false;
+    // the d-pad as the arrows in game too (else the keys of the game's layout when it has some)
+    private boolean dpadAsArrowKey = false;
 
     // map back key function
     private int m_mapBack = Q3EGlobals.ENUM_BACK_ALL;
@@ -160,6 +162,8 @@ class Q3EGameButtonHandler extends Q3EOnScreenButtonHandler
         }
         int qKeyCode = Q3EKeyCodes.convertKeyCode(keyCode, event.getUnicodeChar(0), event);
         int menuKey = MenuPadKey(keyCode, event);
+        if(menuKey == 0)
+            menuKey = GameDPadKey(keyCode, event);
         if(menuKey != 0)
         {
             padMenuKeys.put(keyCode, menuKey);
@@ -188,6 +192,24 @@ class Q3EGameButtonHandler extends Q3EOnScreenButtonHandler
         if(keyCode == KeyEvent.KEYCODE_BUTTON_B)
             return Q3EKeyCodes.KeyCodes.K_ESCAPE;
         return 0;
+    }
+
+    // In game, the pad's d-pad sends the keys of the game's gamepad layout (Q3EGamePadPresets: weapons...)
+    // when it has some: 0 when the key stays as it is
+    private int GameDPadKey(int keyCode, KeyEvent event)
+    {
+        if(Q3E.callbackObj == null || Q3E.q3ei == null || !Q3E.callbackObj.notinmenu || !Q3EControllerControl.IsGamePadKeyEvent(event)
+                || !Q3EGamePadPresets.HasDPad(Q3E.q3ei.game)
+                || dpadAsArrowKey)
+            return 0;
+        switch(keyCode)
+        {
+            case KeyEvent.KEYCODE_DPAD_UP: return Q3EGamePadPresets.DPadKey(Q3E.q3ei.game, 0);
+            case KeyEvent.KEYCODE_DPAD_DOWN: return Q3EGamePadPresets.DPadKey(Q3E.q3ei.game, 1);
+            case KeyEvent.KEYCODE_DPAD_LEFT: return Q3EGamePadPresets.DPadKey(Q3E.q3ei.game, 2);
+            case KeyEvent.KEYCODE_DPAD_RIGHT: return Q3EGamePadPresets.DPadKey(Q3E.q3ei.game, 3);
+            default: return 0;
+        }
     }
 
     private boolean HasKeyMenus()
@@ -428,6 +450,7 @@ class Q3EGameButtonHandler extends Q3EOnScreenButtonHandler
         SharedPreferences mPrefs = PreferenceManager.getDefaultSharedPreferences(context);
 
         mapvol = mPrefs.getBoolean(Q3EPreference.pref_mapvol, false);
+        dpadAsArrowKey = mPrefs.getBoolean(Q3EPreference.pref_harm_dpad_as_arrow_key, false);
         m_mapBack = mPrefs.getInt(Q3EPreference.pref_harm_mapBack, Q3EGlobals.ENUM_BACK_ALL); //k
 
         eventControl = new Q3ERawControl(this.controlView);

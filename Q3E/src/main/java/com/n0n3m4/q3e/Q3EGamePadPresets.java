@@ -19,9 +19,18 @@ public final class Q3EGamePadPresets
     // game -> { button, KeyCodesGeneric field name, ... }
     private static final Map<String, String[]> PRESETS = new HashMap<>();
 
+    // game -> KeyCodesGeneric field names of the d-pad in game { up, down, left, right }, null for none
+    private static final Map<String, String[]> DPADS = new HashMap<>();
+
     private static void Add(String game, String... buttonKeys)
     {
         PRESETS.put(game, buttonKeys);
+    }
+
+    // the d-pad sends these keys in game instead of moving, when the game has them
+    private static void AddDPad(String game, String up, String down, String left, String right)
+    {
+        DPADS.put(game, new String[] { up, down, left, right });
     }
 
     // from each game's default.cfg: R2 fire, L2 alt fire / zoom, A jump, B crouch, Start menu, Select scores / objectives
@@ -38,11 +47,17 @@ public final class Q3EGamePadPresets
                 "button_l1", "K_Z",           // forceprev
                 "button_r1", "K_X",           // forcenext
                 "button_l3", "K_L",           // saberAttackCycle
-                "button_r3", "K_R",           // weapnext
+                "button_r3", "K_MOUSE3",      // zoom
                 "button_start", "K_ESCAPE",
                 "button_select", "K_TAB"      // datapad
         );
-        // Jedi Academy (assets2.pk3 default.cfg)
+        AddDPad(Q3EGameConstants.GAME_JO,
+                "K_P",                        // cg_thirdperson !
+                "K_B",                        // use_bacta
+                "K_MWHEELUP",                 // weapprev
+                "K_MWHEELDOWN"                // weapnext
+        );
+        // Jedi Academy (assets2.pk3 default.cfg), as Jedi Outcast
         Add(Q3EGameConstants.GAME_JA,
                 "button_r2", "K_MOUSE1",      // +attack
                 "button_l2", "K_MOUSE2",      // +altattack
@@ -53,9 +68,15 @@ public final class Q3EGamePadPresets
                 "button_l1", "K_Q",           // forceprev
                 "button_r1", "K_E",           // forcenext
                 "button_l3", "K_L",           // saberAttackCycle
-                "button_r3", "K_RBRACKET",    // weapnext
+                "button_r3", "K_END",         // centerview
                 "button_start", "K_ESCAPE",
                 "button_select", "K_TAB"      // datapad
+        );
+        AddDPad(Q3EGameConstants.GAME_JA,
+                "K_P",                        // cg_thirdperson !
+                null,
+                "K_MWHEELUP",                 // weapprev
+                "K_MWHEELDOWN"                // weapnext
         );
         // Return to Castle Wolfenstein (pak0.pk3 default.cfg)
         Add(Q3EGameConstants.GAME_RTCW,
@@ -171,6 +192,21 @@ public final class Q3EGamePadPresets
                 return GenericCode(buttonKeys[i + 1]);
         }
         return null;
+    }
+
+    public static boolean HasDPad(String game)
+    {
+        return null != game && DPADS.containsKey(game);
+    }
+
+    // the game key of a d-pad direction in game (0 up, 1 down, 2 left, 3 right), 0 for none
+    public static int DPadKey(String game, int direction)
+    {
+        if(!HasDPad(game))
+            return 0;
+        String name = DPADS.get(game)[direction];
+        Integer code = null != name ? GenericCode(name) : null;
+        return null != code ? Q3EKeyCodes.GetRealKeyCode(code) : 0;
     }
 
     private static Integer GenericCode(String name)

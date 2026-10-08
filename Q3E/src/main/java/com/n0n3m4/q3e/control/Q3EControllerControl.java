@@ -31,6 +31,7 @@ import android.view.MotionEvent;
 
 import com.n0n3m4.q3e.Q3E;
 import com.n0n3m4.q3e.Q3EControlView;
+import com.n0n3m4.q3e.Q3EGamePadPresets;
 import com.n0n3m4.q3e.Q3EKeyCodes;
 import com.n0n3m4.q3e.Q3EPreference;
 import com.n0n3m4.q3e.Q3EUtils;
@@ -48,6 +49,7 @@ public final class Q3EControllerControl
 
     // controller
     private final boolean[] directionPressed = { false, false, false, false }; // up down left right
+    private final int[] directionKeys = { 0, 0, 0, 0 }; // the key each pressed direction went down as
     private boolean dpadAsArrowKey = false;
     private float leftJoystickDeadRange = 0.01f;
     private float rightJoystickDeadRange = 0.0f;
@@ -153,7 +155,7 @@ public final class Q3EControllerControl
             }
             else if ((source & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD)
             {
-                if(dpadAsArrowKey || !Q3E.callbackObj.notinmenu)
+                if(DPadAsKeys())
                 {
                     HandleDPadMotionEvent(event);
                     return true;
@@ -178,25 +180,38 @@ public final class Q3EControllerControl
         boolean upPressed = Float.compare(yaxis, -1.0f) == 0;
         boolean downPressed = Float.compare(yaxis, 1.0f) == 0;
 
-        if(leftPressed != directionPressed[2])
+        SendDPadKey(2, leftPressed, Q3EKeyCodes.KeyCodes.K_LEFTARROW);
+        SendDPadKey(3, rightPressed, Q3EKeyCodes.KeyCodes.K_RIGHTARROW);
+        SendDPadKey(0, upPressed, Q3EKeyCodes.KeyCodes.K_UPARROW);
+        SendDPadKey(1, downPressed, Q3EKeyCodes.KeyCodes.K_DOWNARROW);
+    }
+
+    // the d-pad as keys: the arrows in menus (or with DPad as arrow keys), in game the keys of the game's
+    // gamepad layout (Q3EGamePadPresets: weapons...) when it has some, else it moves with the left stick
+    private boolean DPadAsKeys()
+    {
+        return dpadAsArrowKey || !Q3E.callbackObj.notinmenu || Q3EGamePadPresets.HasDPad(Q3E.q3ei.game);
+    }
+
+    private void SendDPadKey(int direction, boolean pressed, int arrowKey)
+    {
+        if(pressed == directionPressed[direction])
+            return;
+        directionPressed[direction] = pressed;
+        if(pressed)
         {
-            Q3E.sendKeyEvent(leftPressed, Q3EKeyCodes.KeyCodes.K_LEFTARROW, 0);
-            directionPressed[2] = leftPressed;
+            int key = arrowKey;
+            if(!dpadAsArrowKey && Q3E.callbackObj.notinmenu && Q3EGamePadPresets.HasDPad(Q3E.q3ei.game))
+                key = Q3EGamePadPresets.DPadKey(Q3E.q3ei.game, direction);
+            directionKeys[direction] = key;
+            if(key != 0)
+                Q3E.sendKeyEvent(true, key, 0);
         }
-        if(rightPressed != directionPressed[3])
+        else
         {
-            Q3E.sendKeyEvent(rightPressed, Q3EKeyCodes.KeyCodes.K_RIGHTARROW, 0);
-            directionPressed[3] = rightPressed;
-        }
-        if(upPressed != directionPressed[0])
-        {
-            Q3E.sendKeyEvent(upPressed, Q3EKeyCodes.KeyCodes.K_UPARROW, 0);
-            directionPressed[0] = upPressed;
-        }
-        if(downPressed != directionPressed[1])
-        {
-            Q3E.sendKeyEvent(downPressed, Q3EKeyCodes.KeyCodes.K_DOWNARROW, 0);
-            directionPressed[1] = downPressed;
+            if(directionKeys[direction] != 0) // released as the key it went down as
+                Q3E.sendKeyEvent(false, directionKeys[direction], 0);
+            directionKeys[direction] = 0;
         }
     }
 
@@ -243,9 +258,11 @@ public final class Q3EControllerControl
         float x = getCenteredAxis(event, inputDevice, MotionEvent.AXIS_X/*, historyPos*/);
         float y = getCenteredAxis(event, inputDevice, MotionEvent.AXIS_Y/*, historyPos*/);
 
-        if(dpadAsArrowKey || !Q3E.callbackObj.notinmenu)
+        if(DPadAsKeys())
         {
             HandleDPadMotionEvent(event);
+            if(Q3E.callbackObj.notinmenu && !dpadAsArrowKey) // the d-pad sends the game's keys, the stick still moves
+                Q3E.sendAnalog((Math.abs(x) > leftJoystickDeadRange) || (Math.abs(y) > leftJoystickDeadRange), x, -y);
         }
         else
         {

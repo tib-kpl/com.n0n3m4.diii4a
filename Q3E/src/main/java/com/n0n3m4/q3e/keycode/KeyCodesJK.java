@@ -83,8 +83,8 @@ public final class KeyCodesJK
     public static final int K_KP_0 = K_KP_INS;
 
     public static final int K_GRAVE      = KeyCodesGeneric.K_GRAVE;
-    public static final int K_LBRACKET    = 40;
-    public static final int K_RBRACKET    = 41;
+    public static final int K_LBRACKET    = 91; // A_OPEN_SQUARE (40 was A_OPEN_BRACKET, the "(" key)
+    public static final int K_RBRACKET    = 93; // A_CLOSE_SQUARE
 
     // GamePad
     public static final int J_BUTTON_A = 256;
