@@ -1330,9 +1330,10 @@ Called by the system for both key up and key down events
 ===================
 CL_MenuPadKey
 
-The pad in the menus: its A and B buttons (A_JOY0, A_JOY1, which the menus ignore) are Enter and
-Escape there; its d-pad already comes as the arrows. What a key became when it went down is what
-goes up, even if the menu closed in between.
+The pad in the menus (out of a game or with the game paused: in game the UI catcher can stay set):
+its A and B buttons (A_JOY0, A_JOY1, which the menus ignore) are Enter and Escape there; its d-pad
+already comes as the arrows. What a key became when it went down is what goes up, even if the menu
+closed in between.
 ===================
 */
 static int CL_MenuPadKey( int key, qboolean down ) {
@@ -1349,7 +1350,8 @@ static int CL_MenuPadKey( int key, qboolean down ) {
 		}
 		return menuKey;
 	}
-	if ( ( Key_GetCatcher( ) & KEYCATCH_UI ) && !( Key_GetCatcher( ) & KEYCATCH_CONSOLE ) ) {
+	if ( ( Key_GetCatcher( ) & KEYCATCH_UI ) && !( Key_GetCatcher( ) & KEYCATCH_CONSOLE ) &&
+		( cls.state != CA_ACTIVE || Cvar_VariableIntegerValue( "cl_paused" ) ) ) {
 		switch ( key ) {
 		case A_JOY0: menuKey = A_ENTER; break;
 		case A_JOY1: menuKey = A_ESCAPE; break;

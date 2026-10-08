@@ -81,7 +81,8 @@ void Sys_SyncState(void)
 		if(cls.state == CA_ACTIVE)
 		{
 			int c = Key_GetCatcher();
-			if(c == 0)
+			// in game the UI catcher can stay set: a menu only with the game paused (as CL_MenuPadKey)
+			if(c == 0 || ((c & KEYCATCH_UI) && !Cvar_VariableIntegerValue("cl_paused") && !(c & KEYCATCH_CONSOLE)))
 				state |= STATE_GAME;
 			else
 			{
