@@ -96,6 +96,10 @@ void Sys_SyncState(void)
 		{
 			state |= STATE_GAME;
 		}
+		else if(Key_GetCatcher() & KEYCATCH_UI)
+		{
+			state |= STATE_MENU; // main menu
+		}
 
 		if (state != prev_state)
 		{

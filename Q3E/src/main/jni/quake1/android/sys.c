@@ -44,6 +44,8 @@ void Sys_SyncState(void)
 		static int prev_state = -1;
 		static int state = -1;
 		state = (key_dest == key_game) << 1;
+		if(key_dest == key_menu || key_dest == key_menu_grabbed)
+			state |= STATE_MENU; // for the pad's A / B in the menus
 		if (state != prev_state)
 		{
 			(*setState)(state);

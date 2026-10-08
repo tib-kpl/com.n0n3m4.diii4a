@@ -28,6 +28,8 @@ void Sys_SyncState(void)
 		//if (cls.state == CA_ACTIVE && Key_GetCatcher() == 0)
 
 		int state = ((clc.state == CA_ACTIVE) && (Key_GetCatcher() == 0)) << 1;
+		if((Key_GetCatcher() & KEYCATCH_UI) && !(Key_GetCatcher() & KEYCATCH_CONSOLE))
+			state |= STATE_MENU; // for the pad's A / B in the menus
 
 		if (state != prev_state)
 		{

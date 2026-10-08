@@ -538,7 +538,10 @@ void Sys_SyncState(void)
 #else
             idUserInterface *gui = sessLocal.GetActiveMenu();
             if(gui)
-                state |= STATE_MENU;
+            {
+                if(gui != sessLocal.guiLoading) // Quake 4's press-a-key screen after loading is no menu (the pad's A / B stay as mapped)
+                    state |= STATE_MENU;
+            }
             else
                 state |= STATE_GAME;
 #endif

@@ -46,8 +46,11 @@ void Sys_SyncState(void)
 			{
 				if(c & KEYCATCH_CGAME)
 					state |= STATE_GAME;
-				if(c & KEYCATCH_UI)
+				// in game the UI catcher can stay set: a menu only with the game paused (as CL_MenuPadKey)
+				if((c & KEYCATCH_UI) && Cvar_VariableIntegerValue("cl_paused"))
 					state |= STATE_MENU;
+				else if(c & KEYCATCH_UI)
+					state |= STATE_GAME;
 				if(c & KEYCATCH_CONSOLE)
 					state |= STATE_CONSOLE;
 			}
@@ -55,6 +58,10 @@ void Sys_SyncState(void)
 		else if(clc.state == CA_CINEMATIC)
 		{
 			state |= STATE_GAME;
+		}
+		else if(Key_GetCatcher() & KEYCATCH_UI)
+		{
+			state |= STATE_MENU; // main menu
 		}
 #endif
 

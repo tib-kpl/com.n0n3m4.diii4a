@@ -170,19 +170,29 @@ class Q3EGameButtonHandler extends Q3EOnScreenButtonHandler
 
     // In the game's menus, the pad's A and B are Enter and Escape, whatever key they are mapped to in
     // game (the d-pad already comes as the arrows there): 0 when the key stays as it is.
-    // Only the games whose menu state is a real menu (Jedi Knight: out of a game or paused): others
-    // report loading screens and in-game screens as menus too (Quake 4's press-a-key loading)
+    // Only when the game reports a menu (STATE_MENU: the engines report only real ones, not loading
+    // or in-game screens), never while loading. Only the games whose menus are worked with the keys:
+    // not the cursor menus of idTech 4, OpenMoHAA or Source (A may be the click there), nor RealRTCW,
+    // whose own pad handling does it
     private int MenuPadKey(int keyCode, KeyEvent event)
     {
-        if(Q3E.q3ei == null || !(Q3E.q3ei.isJA || Q3E.q3ei.isJO))
+        if(Q3E.callbackObj == null || !Q3EControllerControl.IsGamePadKeyEvent(event) || !HasKeyMenus())
             return 0;
-        if(Q3E.callbackObj == null || Q3E.callbackObj.notinmenu || !Q3EControllerControl.IsGamePadKeyEvent(event))
+        int state = Q3E.callbackObj.state;
+        if((state & Q3EGlobals.STATE_MENU) == 0 || (state & Q3EGlobals.STATE_LOADING) != 0)
             return 0;
         if(keyCode == KeyEvent.KEYCODE_BUTTON_A)
             return Q3EKeyCodes.KeyCodes.K_ENTER;
         if(keyCode == KeyEvent.KEYCODE_BUTTON_B)
             return Q3EKeyCodes.KeyCodes.K_ESCAPE;
         return 0;
+    }
+
+    private boolean HasKeyMenus()
+    {
+        Q3EInterface q = Q3E.q3ei;
+        return q != null && (q.isQ1 || q.isQ2 || q.isQ3 || q.isRTCW || q.isJA || q.isJO || q.isETW || q.isUrT
+                || q.isFTEQW || q.isWolf3D || q.isSamTFE || q.isSamTSE || q.isDOOM);
     }
 
     @Override
