@@ -1,0 +1,33 @@
+diff --git a/3rdparty/mainui/Btns.cpp b/3rdparty/mainui/Btns.cpp
+index 422d7c2..205a7e2 100644
+--- a/3rdparty/mainui/Btns.cpp
++++ b/3rdparty/mainui/Btns.cpp
+@@ -51,6 +51,12 @@ void UI_LoadBmpButtons()
+ 	if( uiStatic.lowmemory )
+ 		return;
+ 
++#ifdef _DIII4A //karin: btns_main.bmp has the English labels drawn in: in another language, draw the translated text instead
++	const char *language = EngFuncs::GetCvarString( "ui_language" );
++	if( language[0] && strcmp( language, "english" ))
++		return;
++#endif
++
+ 	CBMP *bmp = CBMP::LoadFile( ART_BUTTONS_MAIN );
+ 
+ 	if( bmp == nullptr )
+diff --git a/3rdparty/mainui/controls/Framework.cpp b/3rdparty/mainui/controls/Framework.cpp
+index 425ba72..a559a8f 100644
+--- a/3rdparty/mainui/controls/Framework.cpp
++++ b/3rdparty/mainui/controls/Framework.cpp
+@@ -226,6 +226,11 @@ CMenuFramework::CMenuBannerBitmap::CMenuBannerBitmap()
+ 
+ void CMenuFramework::CMenuBannerBitmap::SetPicture(const char *pic)
+ {
++#ifdef _DIII4A //karin: the banners have the English titles drawn in: in another language, draw the translated text instead
++	const char *language = EngFuncs::GetCvarString( "ui_language" );
++	if( language[0] && strcmp( language, "english" ))
++		return;
++#endif
+ 	image.Load( pic );
+ }
+ 
