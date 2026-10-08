@@ -17,6 +17,7 @@ on:
       - 'idTech4Amm/**'
       - 'doom3/**'
       - 'CMakeLists.txt'
+      - 'patches/**'
       - '.github/workflows/release.yml'
   workflow_dispatch:
 
