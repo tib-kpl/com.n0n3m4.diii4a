@@ -20,6 +20,7 @@
 package com.n0n3m4.q3e;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.InputDevice;
@@ -577,9 +578,30 @@ public class Q3EKeyCodes
         }
     }
 
+    // the current game's gamepad button map ("button:code"): its own one, else the one of all games
+    public static Set<String> GetGamePadKeymapSet(Context context)
+    {
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        String game = null != Q3E.q3ei ? Q3E.q3ei.game : null;
+        Set<String> codeSet = null;
+        if(null != game && !game.isEmpty())
+            codeSet = preferences.getStringSet(Q3EPreference.GamePadKeymapKey(game), null);
+        if(null == codeSet)
+            codeSet = preferences.getStringSet(Q3EPreference.pref_harm_gamepad_keymap, new HashSet<>());
+        return codeSet;
+    }
+
+    // saved for the current game only (or for all games when there is none)
+    public static void SaveGamePadKeymapSet(Context context, Set<String> codeSet)
+    {
+        String game = null != Q3E.q3ei ? Q3E.q3ei.game : null;
+        String key = null != game && !game.isEmpty() ? Q3EPreference.GamePadKeymapKey(game) : Q3EPreference.pref_harm_gamepad_keymap;
+        PreferenceManager.getDefaultSharedPreferences(context).edit().putStringSet(key, codeSet).commit();
+    }
+
     public static Map<String, Integer> LoadGamePadButtonCodeMap(Context context)
     {
-        Set<String> codeSet = PreferenceManager.getDefaultSharedPreferences(context).getStringSet(Q3EPreference.pref_harm_gamepad_keymap, new HashSet<>());
+        Set<String> codeSet = GetGamePadKeymapSet(context);
         Map<String, Integer> codeMap = new HashMap<>();
         for (String s : codeSet) {
             String[] split = s.split(":");

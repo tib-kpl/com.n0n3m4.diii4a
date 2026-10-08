@@ -123,8 +123,8 @@ public class ControllerConfigPreference extends PreferenceFragment implements Pr
         if(null == newValue)
             return;
         button = button.substring(Q3EPreference.pref_harm_gamepad_keymap.length() + 1);
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(getActivity());
-        Set<String> codeSet = new HashSet<>(preferences.getStringSet(Q3EPreference.pref_harm_gamepad_keymap, new HashSet<>()));
+        // the buttons are the current game's own (a game set up first starts from the map of all games)
+        Set<String> codeSet = new HashSet<>(Q3EKeyCodes.GetGamePadKeymapSet(getActivity()));
         Set<String> rmList = new HashSet<>();
         for (String s : codeSet) {
             String b = s.split(":")[0];
@@ -136,7 +136,7 @@ public class ControllerConfigPreference extends PreferenceFragment implements Pr
         }
         codeSet.removeAll(rmList);
         codeSet.add(button  + ":" + newValue);
-        preferences.edit().putStringSet(Q3EPreference.pref_harm_gamepad_keymap, codeSet).commit();
+        Q3EKeyCodes.SaveGamePadKeymapSet(getActivity(), codeSet);
     }
 
     private void SetupGamePadButtons()
@@ -175,10 +175,11 @@ public class ControllerConfigPreference extends PreferenceFragment implements Pr
         edit.putString(Q3EPreference.pref_harm_right_joystick_sensitivity, "1");
         edit.putString(Q3EPreference.pref_harm_aim_assist, "0");
 
-        edit.remove(Q3EPreference.pref_harm_gamepad_keymap);
+        edit.commit();
+
+        // the buttons of the current game only: back to the defaults
+        Q3EKeyCodes.SaveGamePadKeymapSet(getActivity(), new HashSet<>());
 
         SetupGamePadButtons();
-
-        edit.commit();
     }
 }

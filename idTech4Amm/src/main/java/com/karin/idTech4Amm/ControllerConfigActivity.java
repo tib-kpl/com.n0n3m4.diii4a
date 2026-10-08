@@ -12,6 +12,7 @@ import com.karin.idTech4Amm.lib.ContextUtility;
 import com.karin.idTech4Amm.sys.PreferenceKey;
 import com.n0n3m4.q3e.karin.Theme;
 import com.karin.idTech4Amm.ui.ControllerConfigPreference;
+import com.n0n3m4.q3e.Q3E;
 import com.n0n3m4.q3e.Q3ELang;
 
 /**
@@ -31,6 +32,10 @@ public class ControllerConfigActivity extends PreferenceActivity
         ContextUtility.SetScreenOrientation(this, o ? 0 : 1);
 
         Theme.SetTheme(this, false);
+
+        // the buttons set up here are the current game's own
+        if(null != Q3E.q3ei && null != Q3E.q3ei.game_name && !Q3E.q3ei.game_name.isEmpty())
+            setTitle(getTitle() + " - " + Q3E.q3ei.game_name);
 
         m_preference = new ControllerConfigPreference();
         getFragmentManager().beginTransaction().replace(android.R.id.content, m_preference).commit();
