@@ -1,0 +1,422 @@
+diff --git a/materialsystem/shaderapidx9/vertexshaderdx8.cpp b/materialsystem/shaderapidx9/vertexshaderdx8.cpp
+index 7444c8f2..2b58e31f 100644
+--- a/materialsystem/shaderapidx9/vertexshaderdx8.cpp
++++ b/materialsystem/shaderapidx9/vertexshaderdx8.cpp
+@@ -45,6 +45,7 @@ typedef int SOCKET;
+ #include <time.h>
+ #include <stdlib.h>
+ #include "filesystem.h"
++#include "shadercomboremap.h"
+ #include "convar.h"
+ #include "materialsystem/shader_vcs_version.h"
+ #include "tier1/lzmaDecoder.h"
+@@ -548,6 +549,79 @@ struct ShaderFileCache_t
+ };
+ 
+ 
++//karin: combos of the .vcs files newer than this engine (Half-Life 2 20th anniversary, SDK 2013 of 2025), see shadercomboremap.h
++static const ShaderComboLayouts_t *FindShaderComboLayouts( const char *pShaderName )
++{
++	for ( int i = 0; i < ARRAYSIZE( s_ShaderComboLayouts ); i++ )
++	{
++		if ( !Q_stricmp( s_ShaderComboLayouts[i].m_pShaderName, pShaderName ) )
++			return &s_ShaderComboLayouts[i];
++	}
++	return NULL;
++}
++
++static uint64 ShaderComboCount( const ShaderComboVar_t *pVars, int nVars )
++{
++	uint64 nCount = 1;
++	for ( int i = 0; i < nVars; i++ )
++		nCount *= pVars[i].m_nCount;
++	return nCount;
++}
++
++// the number of first variables of the new layout making nCount combos (times nFactor, modulo 2^32 as the header's total), -1: none
++static int ShaderComboLayoutPrefix( const ShaderComboVar_t *pVars, int nVars, uint64 nFactor, uint32 nCount )
++{
++	int nPrefix = -1;
++	uint64 nProduct = 1;
++	for ( int i = 0; ; i++ )
++	{
++		if ( (uint32)( nProduct * nFactor ) == nCount )
++			nPrefix = i;
++		if ( i == nVars )
++			break;
++		nProduct *= pVars[i].m_nCount;
++	}
++	return nPrefix;
++}
++
++// index in the engine's layout -> index in the first nTo variables of the new one, by the variables' names: a new variable
++// is 0, the pixel fog type the current one (nPixelFog >= 0); -1 if a value is out of its new range
++static int RemapShaderComboIndex( int nIndex, const ShaderComboVar_t *pFrom, int nFrom, const ShaderComboVar_t *pTo, int nTo, int nPixelFog )
++{
++	int nValues[64];
++	if ( nFrom > ARRAYSIZE( nValues ) )
++		return -1;
++	for ( int i = 0; i < nFrom; i++ )
++	{
++		nValues[i] = nIndex % pFrom[i].m_nCount;
++		nIndex /= pFrom[i].m_nCount;
++	}
++
++	int nResult = 0;
++	int nMultiplier = 1;
++	for ( int j = 0; j < nTo; j++ )
++	{
++		int nValue = 0;
++		bool bFound = false;
++		for ( int i = 0; i < nFrom; i++ )
++		{
++			if ( pFrom[i].m_pName && pTo[j].m_pName && !Q_strcmp( pFrom[i].m_pName, pTo[j].m_pName ) )
++			{
++				nValue = nValues[i];
++				bFound = true;
++				break;
++			}
++		}
++		if ( !bFound && nPixelFog >= 0 && pTo[j].m_pName && !Q_strcmp( pTo[j].m_pName, "PIXELFOGTYPE" ) )
++			nValue = nPixelFog;
++		if ( nValue >= pTo[j].m_nCount )
++			return -1;
++		nResult += nValue * nMultiplier;
++		nMultiplier *= pTo[j].m_nCount;
++	}
++	return nResult;
++}
++
+ //-----------------------------------------------------------------------------
+ // Vertex + pixel shader manager
+ //-----------------------------------------------------------------------------
+@@ -606,6 +680,11 @@ private:
+ 		};
+ 
+ 		ShaderCreationData_t *m_pCreationData;
++
++		//karin: the .vcs has a newer layout of combos than this engine's: the layouts and how many of the new variables it has
++		const ShaderComboLayouts_t *m_pComboLayouts;
++		int m_nNewStaticVars;
++		int m_nNewDynamicVars;
+ 	};
+ 	
+ 	struct ShaderLookup_t
+@@ -630,6 +709,9 @@ private:
+ 			m_ShaderStaticCombos.m_nCount = 0;
+ 			m_ShaderStaticCombos.m_pHardwareShaders = 0;
+ 			m_ShaderStaticCombos.m_pCreationData = 0;
++			m_ShaderStaticCombos.m_pComboLayouts = NULL;
++			m_ShaderStaticCombos.m_nNewStaticVars = 0;
++			m_ShaderStaticCombos.m_nNewDynamicVars = 0;
+ 			m_pComboDictionary = NULL;
+ 		}
+ 		void IncRefCount()
+@@ -701,6 +783,8 @@ private:
+ 	void					DestroyPixelShader( PixelShader_t shader );
+ 
+ 	bool					LoadAndCreateShaders( ShaderLookup_t &lookup, bool bVertexShader, char *debugLabel = NULL );
++	// the engine's dynamic combo index -> the .vcs file's
++	int						DynamicComboIndex( const ShaderLookup_t &lookup, int nIndex );
+ 	FileHandle_t			OpenFileAndLoadHeader( const char *pFileName, ShaderHeader_t *pHeader );
+ 
+ #ifdef DYNAMIC_SHADER_COMPILE
+@@ -2668,7 +2752,38 @@ bool CShaderManager::LoadAndCreateShaders( ShaderLookup_t &lookup, bool bVertexS
+ 	}
+ 	else
+ 	{
+-		int nStaticComboIdx = pFileCache->FindCombo( lookup.m_nStaticIndex / pFileCache->m_Header.m_nDynamicCombos );
++		int nStaticCombo = lookup.m_nStaticIndex / pFileCache->m_Header.m_nDynamicCombos;
++
++		//karin: a .vcs newer than the engine (another number of combos): the engine's combo values put in its layout
++		ShaderStaticCombos_t &combos = lookup.m_ShaderStaticCombos;
++		combos.m_pComboLayouts = NULL;
++		const ShaderComboLayouts_t *pLayouts = FindShaderComboLayouts( pName );
++		if ( pLayouts )
++		{
++			uint64 nEngineDynamic = ShaderComboCount( pLayouts->m_pEngineDynamic, pLayouts->m_nEngineDynamic );
++			uint64 nEngineStatic = ShaderComboCount( pLayouts->m_pEngineStatic, pLayouts->m_nEngineStatic );
++			uint32 nFileDynamic = (uint32)pFileCache->m_Header.m_nDynamicCombos;
++			uint32 nFileTotal = (uint32)pFileCache->m_Header.m_nTotalCombos;
++			if ( nFileDynamic != nEngineDynamic || nFileTotal != (uint32)( nEngineStatic * nEngineDynamic ) )
++			{
++				int nNewDynamicVars = ShaderComboLayoutPrefix( pLayouts->m_pNewDynamic, pLayouts->m_nNewDynamic, 1, nFileDynamic );
++				int nNewStaticVars = ShaderComboLayoutPrefix( pLayouts->m_pNewStatic, pLayouts->m_nNewStatic, nFileDynamic, nFileTotal );
++				if ( nNewDynamicVars >= 0 && nNewStaticVars >= 0 )
++				{
++					combos.m_pComboLayouts = pLayouts;
++					combos.m_nNewStaticVars = nNewStaticVars;
++					combos.m_nNewDynamicVars = nNewDynamicVars;
++					nStaticCombo = RemapShaderComboIndex( (int)( lookup.m_nStaticIndex / nEngineDynamic ), pLayouts->m_pEngineStatic, pLayouts->m_nEngineStatic,
++						pLayouts->m_pNewStatic, nNewStaticVars, -1 );
++				}
++				else
++				{
++					Warning( "Shader '%s' - unknown layout of combos (dyn=%u, total=%u)\n", pName, nFileDynamic, nFileTotal );
++				}
++			}
++		}
++
++		int nStaticComboIdx = nStaticCombo < 0 ? -1 : pFileCache->FindCombo( nStaticCombo );
+ 		if ( nStaticComboIdx == -1 )
+ 		{
+ 			g_pFullFileSystem->Close( hFile );
+@@ -2891,8 +3006,8 @@ void CShaderManager::WarmShaderCache()
+ 				//HardwareShader_t hardwareVertexShader = vshLookup.m_ShaderStaticCombos.m_pHardwareShaders[nVertexShaderDynamicIndex];
+ 				//HardwareShader_t hardwarePixelShader = pshLookup.m_ShaderStaticCombos.m_pHardwareShaders[nPixelShaderDynamicIndex];
+ 
+-				HardwareShader_t hardwareVertexShader = m_VertexShaderDict[vertexShader].m_ShaderStaticCombos.m_pHardwareShaders[nVertexShaderDynamicIndex];
+-				HardwareShader_t hardwarePixelShader = m_PixelShaderDict[pixelShader].m_ShaderStaticCombos.m_pHardwareShaders[nPixelShaderDynamicIndex];
++				HardwareShader_t hardwareVertexShader = m_VertexShaderDict[vertexShader].m_ShaderStaticCombos.m_pHardwareShaders[DynamicComboIndex( m_VertexShaderDict[vertexShader], nVertexShaderDynamicIndex )];
++				HardwareShader_t hardwarePixelShader = m_PixelShaderDict[pixelShader].m_ShaderStaticCombos.m_pHardwareShaders[DynamicComboIndex( m_PixelShaderDict[pixelShader], nPixelShaderDynamicIndex )];
+ 
+ 				if ( ( hardwareVertexShader != INVALID_HARDWARE_SHADER ) && ( hardwarePixelShader != INVALID_HARDWARE_SHADER ) )
+ 				{
+@@ -3078,8 +3193,8 @@ bool	CShaderManager::LoadShaderCache( char *cacheName )
+ 				// and sanity check the indices..
+ 				if ( (nVertexShaderDynamicIndex>=0) && (nPixelShaderDynamicIndex>=0) )
+ 				{
+-					HardwareShader_t hardwareVertexShader = m_VertexShaderDict[vertexShader].m_ShaderStaticCombos.m_pHardwareShaders[nVertexShaderDynamicIndex];
+-					HardwareShader_t hardwarePixelShader = m_PixelShaderDict[pixelShader].m_ShaderStaticCombos.m_pHardwareShaders[nPixelShaderDynamicIndex];
++					HardwareShader_t hardwareVertexShader = m_VertexShaderDict[vertexShader].m_ShaderStaticCombos.m_pHardwareShaders[DynamicComboIndex( m_VertexShaderDict[vertexShader], nVertexShaderDynamicIndex )];
++					HardwareShader_t hardwarePixelShader = m_PixelShaderDict[pixelShader].m_ShaderStaticCombos.m_pHardwareShaders[DynamicComboIndex( m_PixelShaderDict[pixelShader], nPixelShaderDynamicIndex )];
+ 
+ 					if ( ( hardwareVertexShader != INVALID_HARDWARE_SHADER ) && ( hardwarePixelShader != INVALID_HARDWARE_SHADER ) )
+ 					{
+@@ -3291,6 +3406,20 @@ void CShaderManager::BindVertexShader( VertexShaderHandle_t hVertexShader )
+ }
+ 
+ 
++//-----------------------------------------------------------------------------
++// The engine's dynamic combo index -> the .vcs file's (a newer layout, see LoadAndCreateShaders)
++//-----------------------------------------------------------------------------
++int CShaderManager::DynamicComboIndex( const ShaderLookup_t &lookup, int nIndex )
++{
++	const ShaderStaticCombos_t &combos = lookup.m_ShaderStaticCombos;
++	const ShaderComboLayouts_t *pLayouts = combos.m_pComboLayouts;
++	if ( !pLayouts || nIndex < 0 )
++		return nIndex;
++	int nNewIndex = RemapShaderComboIndex( nIndex, pLayouts->m_pEngineDynamic, pLayouts->m_nEngineDynamic,
++		pLayouts->m_pNewDynamic, combos.m_nNewDynamicVars, ShaderAPI()->GetPixelFogCombo() );
++	return nNewIndex >= 0 && nNewIndex < combos.m_nCount ? nNewIndex : 0;
++}
++
+ //-----------------------------------------------------------------------------
+ // Sets a particular vertex shader as the current shader
+ //-----------------------------------------------------------------------------
+@@ -3311,6 +3440,7 @@ void CShaderManager::SetVertexShader( VertexShader_t shader )
+ 	}
+ 
+ 	ShaderLookup_t &vshLookup = m_VertexShaderDict[shader];
++	vshIndex = DynamicComboIndex( vshLookup, vshIndex );
+ //	Warning( "vsh: %s static: %d dynamic: %d\n", m_ShaderSymbolTable.String( vshLookup.m_Name ),
+ //		vshLookup.m_nStaticIndex, m_nVertexShaderIndex );
+ 
+@@ -3414,6 +3544,7 @@ void CShaderManager::SetPixelShader( PixelShader_t shader )
+ 	int pshIndex = m_nPixelShaderIndex;
+ 	Assert( pshIndex >= 0 );
+ 	ShaderLookup_t &pshLookup = m_PixelShaderDict[shader];
++	pshIndex = DynamicComboIndex( pshLookup, pshIndex );
+ //	Warning( "psh: %s static: %d dynamic: %d\n", m_ShaderSymbolTable.String( pshLookup.m_Name ),
+ //		pshLookup.m_nStaticIndex, m_nPixelShaderIndex );
+ 
+diff --git a/materialsystem/shaderapidx9/shadercomboremap.h b/materialsystem/shaderapidx9/shadercomboremap.h
+new file mode 100644
+index 00000000..0077200b
+--- /dev/null
++++ b/materialsystem/shaderapidx9/shadercomboremap.h
+@@ -0,0 +1,194 @@
++//karin: combo layouts of the shaders whose combos changed in the 2024 Half-Life 2 update (20th anniversary) and the
++// 2025 SDK 2013 (stdshaders/include of github.com/ValveSoftware/source-sdk-2013): this engine's own (fxctmp9) and the new
++// one. A newer .vcs has the new layout, or its start when the variables at the end came later (the 2024 files). Generated
++// from both sets of .inc files, ordered as their combo index (first variable: multiplier 1)
++#ifndef SHADERCOMBOREMAP_H
++#define SHADERCOMBOREMAP_H
++
++struct ShaderComboVar_t
++{
++	const char *m_pName;
++	int m_nCount;
++};
++
++struct ShaderComboLayouts_t
++{
++	const char *m_pShaderName;
++	const ShaderComboVar_t *m_pEngineStatic; int m_nEngineStatic;
++	const ShaderComboVar_t *m_pEngineDynamic; int m_nEngineDynamic;
++	const ShaderComboVar_t *m_pNewStatic; int m_nNewStatic;
++	const ShaderComboVar_t *m_pNewDynamic; int m_nNewDynamic;
++};
++
++static const ShaderComboVar_t s_cable_ps20b_engStatic[] = { { "CONVERT_TO_SRGB", 2 } };
++static const ShaderComboVar_t s_cable_ps20b_engDynamic[] = { { "PIXELFOGTYPE", 2 }, { "WRITE_DEPTH_TO_DESTALPHA", 2 } };
++static const ShaderComboVar_t s_cable_ps20b_sdkStatic[] = { { "CONVERT_TO_SRGB", 2 } };
++static const ShaderComboVar_t s_cable_ps20b_sdkDynamic[] = { { "PIXELFOGTYPE", 3 }, { "WRITE_DEPTH_TO_DESTALPHA", 2 } };
++static const ShaderComboVar_t s_decalmodulate_ps20b_engStatic[] = { { "CONVERT_TO_SRGB", 2 } };
++static const ShaderComboVar_t s_decalmodulate_ps20b_engDynamic[] = { { "PIXELFOGTYPE", 2 } };
++static const ShaderComboVar_t s_decalmodulate_ps20b_sdkStatic[] = { { "CONVERT_TO_SRGB", 2 } };
++static const ShaderComboVar_t s_decalmodulate_ps20b_sdkDynamic[] = { { "PIXELFOGTYPE", 3 } };
++static const ShaderComboVar_t s_decalmodulate_ps30_engStatic[] = { { "CONVERT_TO_SRGB", 2 } };
++static const ShaderComboVar_t s_decalmodulate_ps30_engDynamic[] = { { "PIXELFOGTYPE", 2 } };
++static const ShaderComboVar_t s_decalmodulate_ps30_sdkStatic[] = { { "CONVERT_TO_SRGB", 2 } };
++static const ShaderComboVar_t s_decalmodulate_ps30_sdkDynamic[] = { { "PIXELFOGTYPE", 3 } };
++static const ShaderComboVar_t s_depthwrite_vs20_engStatic[] = { { "ONLY_PROJECT_POSITION", 1 }, { "COLOR_DEPTH", 2 } };
++static const ShaderComboVar_t s_depthwrite_vs20_engDynamic[] = { { "COMPRESSED_VERTS", 2 }, { "SKINNING", 2 } };
++static const ShaderComboVar_t s_depthwrite_vs20_sdkStatic[] = { { "ONLY_PROJECT_POSITION", 1 }, { "COLOR_DEPTH", 2 }, { "TREESWAY", 3 } };
++static const ShaderComboVar_t s_depthwrite_vs20_sdkDynamic[] = { { "COMPRESSED_VERTS", 2 }, { "SKINNING", 2 } };
++static const ShaderComboVar_t s_depthwrite_vs30_engStatic[] = { { "ONLY_PROJECT_POSITION", 1 }, { "COLOR_DEPTH", 2 } };
++static const ShaderComboVar_t s_depthwrite_vs30_engDynamic[] = { { "COMPRESSED_VERTS", 2 }, { "SKINNING", 2 }, { "MORPHING", 2 } };
++static const ShaderComboVar_t s_depthwrite_vs30_sdkStatic[] = { { "ONLY_PROJECT_POSITION", 1 }, { "COLOR_DEPTH", 2 }, { "TREESWAY", 3 } };
++static const ShaderComboVar_t s_depthwrite_vs30_sdkDynamic[] = { { "COMPRESSED_VERTS", 2 }, { "SKINNING", 2 }, { "MORPHING", 2 } };
++static const ShaderComboVar_t s_eye_refract_ps20b_engStatic[] = { { "FLASHLIGHT", 2 }, { "LIGHTWARPTEXTURE", 2 }, { "SPHERETEXKILLCOMBO", 2 }, { "RAYTRACESPHERE", 2 }, { "FLASHLIGHTDEPTHFILTERMODE", 3 } };
++static const ShaderComboVar_t s_eye_refract_ps20b_engDynamic[] = { { "NUM_LIGHTS", 5 }, { "FLASHLIGHTSHADOWS", 2 } };
++static const ShaderComboVar_t s_eye_refract_ps20b_sdkStatic[] = { { "FLASHLIGHT", 2 }, { "LIGHTWARPTEXTURE", 2 }, { "SPHERETEXKILLCOMBO", 2 }, { "RAYTRACESPHERE", 2 }, { "FLASHLIGHTDEPTHFILTERMODE", 3 } };
++static const ShaderComboVar_t s_eye_refract_ps20b_sdkDynamic[] = { { "NUM_LIGHTS", 5 }, { "FLASHLIGHTSHADOWS", 2 }, { "PIXELFOGTYPE", 3 } };
++static const ShaderComboVar_t s_eye_refract_ps30_engStatic[] = { { "FLASHLIGHT", 2 }, { "LIGHTWARPTEXTURE", 2 }, { "SPHERETEXKILLCOMBO", 2 }, { "RAYTRACESPHERE", 2 }, { "FLASHLIGHTDEPTHFILTERMODE", 3 } };
++static const ShaderComboVar_t s_eye_refract_ps30_engDynamic[] = { { "NUM_LIGHTS", 5 }, { "FLASHLIGHTSHADOWS", 2 } };
++static const ShaderComboVar_t s_eye_refract_ps30_sdkStatic[] = { { "FLASHLIGHT", 2 }, { "LIGHTWARPTEXTURE", 2 }, { "SPHERETEXKILLCOMBO", 2 }, { "RAYTRACESPHERE", 2 }, { "FLASHLIGHTDEPTHFILTERMODE", 3 } };
++static const ShaderComboVar_t s_eye_refract_ps30_sdkDynamic[] = { { "NUM_LIGHTS", 5 }, { "FLASHLIGHTSHADOWS", 2 }, { "PIXELFOGTYPE", 3 } };
++static const ShaderComboVar_t s_eyes_flashlight_ps20b_engStatic[] = { { "FLASHLIGHTDEPTHFILTERMODE", 3 } };
++static const ShaderComboVar_t s_eyes_flashlight_ps20b_engDynamic[] = { { "PIXELFOGTYPE", 2 }, { "FLASHLIGHTSHADOWS", 2 } };
++static const ShaderComboVar_t s_eyes_flashlight_ps20b_sdkStatic[] = { { "FLASHLIGHTDEPTHFILTERMODE", 3 } };
++static const ShaderComboVar_t s_eyes_flashlight_ps20b_sdkDynamic[] = { { "PIXELFOGTYPE", 3 }, { "FLASHLIGHTSHADOWS", 2 } };
++static const ShaderComboVar_t s_eyes_flashlight_ps30_engStatic[] = { { "FLASHLIGHTDEPTHFILTERMODE", 3 } };
++static const ShaderComboVar_t s_eyes_flashlight_ps30_engDynamic[] = { { "PIXELFOGTYPE", 2 }, { "FLASHLIGHTSHADOWS", 2 } };
++static const ShaderComboVar_t s_eyes_flashlight_ps30_sdkStatic[] = { { "FLASHLIGHTDEPTHFILTERMODE", 3 } };
++static const ShaderComboVar_t s_eyes_flashlight_ps30_sdkDynamic[] = { { "PIXELFOGTYPE", 3 }, { "FLASHLIGHTSHADOWS", 2 } };
++static const ShaderComboVar_t s_eyes_ps20b_engStatic[] = { { NULL, 1 } };
++static const ShaderComboVar_t s_eyes_ps20b_engDynamic[] = { { "WRITE_DEPTH_TO_DESTALPHA", 2 }, { "PIXELFOGTYPE", 2 } };
++static const ShaderComboVar_t s_eyes_ps20b_sdkStatic[] = { { NULL, 1 } };
++static const ShaderComboVar_t s_eyes_ps20b_sdkDynamic[] = { { "WRITE_DEPTH_TO_DESTALPHA", 2 }, { "PIXELFOGTYPE", 3 } };
++static const ShaderComboVar_t s_eyes_ps30_engStatic[] = { { NULL, 1 } };
++static const ShaderComboVar_t s_eyes_ps30_engDynamic[] = { { "WRITE_DEPTH_TO_DESTALPHA", 2 }, { "PIXELFOGTYPE", 2 } };
++static const ShaderComboVar_t s_eyes_ps30_sdkStatic[] = { { NULL, 1 } };
++static const ShaderComboVar_t s_eyes_ps30_sdkDynamic[] = { { "WRITE_DEPTH_TO_DESTALPHA", 2 }, { "PIXELFOGTYPE", 3 } };
++static const ShaderComboVar_t s_lightmappedgeneric_decal_ps20b_engStatic[] = { { "CONVERT_TO_SRGB", 2 } };
++static const ShaderComboVar_t s_lightmappedgeneric_decal_ps20b_engDynamic[] = { { "PIXELFOGTYPE", 2 } };
++static const ShaderComboVar_t s_lightmappedgeneric_decal_ps20b_sdkStatic[] = { { "CONVERT_TO_SRGB", 2 } };
++static const ShaderComboVar_t s_lightmappedgeneric_decal_ps20b_sdkDynamic[] = { { "PIXELFOGTYPE", 3 } };
++static const ShaderComboVar_t s_lightmappedgeneric_ps20b_engStatic[] = { { "MASKEDBLENDING", 2 }, { "BASETEXTURE2", 2 }, { "DETAILTEXTURE", 2 }, { "BUMPMAP", 3 }, { "BUMPMAP2", 2 }, { "CUBEMAP", 2 }, { "ENVMAPMASK", 2 }, { "BASEALPHAENVMAPMASK", 2 }, { "SELFILLUM", 2 }, { "NORMALMAPALPHAENVMAPMASK", 2 }, { "DIFFUSEBUMPMAP", 2 }, { "BASETEXTURENOENVMAP", 2 }, { "BASETEXTURE2NOENVMAP", 2 }, { "WARPLIGHTING", 2 }, { "FANCY_BLENDING", 2 }, { "RELIEF_MAPPING", 1 }, { "SEAMLESS", 2 }, { "OUTLINE", 2 }, { "SOFTEDGES", 2 }, { "BUMPMASK", 2 }, { "NORMAL_DECODE_MODE", 1 }, { "NORMALMASK_DECODE_MODE", 1 }, { "DETAIL_BLEND_MODE", 12 } };
++static const ShaderComboVar_t s_lightmappedgeneric_ps20b_engDynamic[] = { { "FASTPATHENVMAPCONTRAST", 2 }, { "FASTPATH", 2 }, { "WRITEWATERFOGTODESTALPHA", 2 }, { "PIXELFOGTYPE", 2 }, { "LIGHTING_PREVIEW", 3 }, { "WRITE_DEPTH_TO_DESTALPHA", 2 } };
++static const ShaderComboVar_t s_lightmappedgeneric_ps20b_sdkStatic[] = { { "MASKEDBLENDING", 2 }, { "BASETEXTURE2", 2 }, { "DETAILTEXTURE", 2 }, { "BUMPMAP", 3 }, { "BUMPMAP2", 2 }, { "CUBEMAP", 2 }, { "ENVMAPMASK", 2 }, { "BASEALPHAENVMAPMASK", 2 }, { "SELFILLUM", 2 }, { "NORMALMAPALPHAENVMAPMASK", 2 }, { "DIFFUSEBUMPMAP", 2 }, { "BASETEXTURENOENVMAP", 2 }, { "BASETEXTURE2NOENVMAP", 2 }, { "WARPLIGHTING", 2 }, { "FANCY_BLENDING", 2 }, { "RELIEF_MAPPING", 1 }, { "SEAMLESS", 2 }, { "OUTLINE", 2 }, { "SOFTEDGES", 2 }, { "BUMPMASK", 2 }, { "NORMAL_DECODE_MODE", 1 }, { "NORMALMASK_DECODE_MODE", 1 }, { "DETAIL_BLEND_MODE", 12 } };
++static const ShaderComboVar_t s_lightmappedgeneric_ps20b_sdkDynamic[] = { { "FASTPATHENVMAPCONTRAST", 2 }, { "FASTPATH", 2 }, { "WRITEWATERFOGTODESTALPHA", 2 }, { "PIXELFOGTYPE", 3 }, { "LIGHTING_PREVIEW", 3 }, { "WRITE_DEPTH_TO_DESTALPHA", 2 }, { "BICUBIC_LIGHTMAP", 2 } };
++static const ShaderComboVar_t s_refract_ps20b_engStatic[] = { { "CONVERT_TO_SRGB", 2 }, { "BLUR", 2 }, { "FADEOUTONSILHOUETTE", 2 }, { "CUBEMAP", 2 }, { "REFRACTTINTTEXTURE", 2 }, { "MASKED", 2 }, { "COLORMODULATE", 2 }, { "SECONDARY_NORMAL", 2 }, { "NORMAL_DECODE_MODE", 1 }, { "SHADER_SRGB_READ", 2 } };
++static const ShaderComboVar_t s_refract_ps20b_engDynamic[] = { { "PIXELFOGTYPE", 2 }, { "WRITE_DEPTH_TO_DESTALPHA", 2 } };
++static const ShaderComboVar_t s_refract_ps20b_sdkStatic[] = { { "CONVERT_TO_SRGB", 2 }, { "BLUR", 2 }, { "FADEOUTONSILHOUETTE", 2 }, { "CUBEMAP", 2 }, { "REFRACTTINTTEXTURE", 2 }, { "MASKED", 2 }, { "COLORMODULATE", 2 }, { "SECONDARY_NORMAL", 2 }, { "NORMAL_DECODE_MODE", 1 }, { "SHADER_SRGB_READ", 2 } };
++static const ShaderComboVar_t s_refract_ps20b_sdkDynamic[] = { { "PIXELFOGTYPE", 3 }, { "WRITE_DEPTH_TO_DESTALPHA", 2 } };
++static const ShaderComboVar_t s_skin_ps20b_engStatic[] = { { "CONVERT_TO_SRGB", 1 }, { "CUBEMAP", 2 }, { "SELFILLUM", 2 }, { "SELFILLUMFRESNEL", 2 }, { "FLASHLIGHT", 2 }, { "LIGHTWARPTEXTURE", 2 }, { "PHONGWARPTEXTURE", 2 }, { "WRINKLEMAP", 2 }, { "DETAIL_BLEND_MODE", 7 }, { "DETAILTEXTURE", 2 }, { "RIMLIGHT", 2 }, { "FLASHLIGHTDEPTHFILTERMODE", 3 }, { "FASTPATH_NOBUMP", 2 }, { "BLENDTINTBYBASEALPHA", 2 } };
++static const ShaderComboVar_t s_skin_ps20b_engDynamic[] = { { "WRITEWATERFOGTODESTALPHA", 2 }, { "PIXELFOGTYPE", 2 }, { "NUM_LIGHTS", 5 }, { "WRITE_DEPTH_TO_DESTALPHA", 2 }, { "FLASHLIGHTSHADOWS", 2 } };
++static const ShaderComboVar_t s_skin_ps20b_sdkStatic[] = { { "CONVERT_TO_SRGB", 1 }, { "CUBEMAP", 2 }, { "SELFILLUM", 2 }, { "SELFILLUMFRESNEL", 2 }, { "FLASHLIGHT", 2 }, { "LIGHTWARPTEXTURE", 2 }, { "PHONGWARPTEXTURE", 2 }, { "WRINKLEMAP", 2 }, { "DETAIL_BLEND_MODE", 7 }, { "DETAILTEXTURE", 2 }, { "RIMLIGHT", 2 }, { "FLASHLIGHTDEPTHFILTERMODE", 3 }, { "FASTPATH_NOBUMP", 2 }, { "BLENDTINTBYBASEALPHA", 2 } };
++static const ShaderComboVar_t s_skin_ps20b_sdkDynamic[] = { { "WRITEWATERFOGTODESTALPHA", 2 }, { "PIXELFOGTYPE", 3 }, { "NUM_LIGHTS", 5 }, { "WRITE_DEPTH_TO_DESTALPHA", 2 }, { "FLASHLIGHTSHADOWS", 2 }, { "PHONG_USE_EXPONENT_FACTOR", 2 } };
++static const ShaderComboVar_t s_skin_ps30_engStatic[] = { { "CONVERT_TO_SRGB", 1 }, { "CUBEMAP", 2 }, { "SELFILLUM", 2 }, { "SELFILLUMFRESNEL", 2 }, { "FLASHLIGHT", 2 }, { "LIGHTWARPTEXTURE", 2 }, { "PHONGWARPTEXTURE", 2 }, { "WRINKLEMAP", 2 }, { "DETAIL_BLEND_MODE", 7 }, { "DETAILTEXTURE", 2 }, { "RIMLIGHT", 2 }, { "FLASHLIGHTDEPTHFILTERMODE", 3 }, { "FASTPATH_NOBUMP", 2 }, { "BLENDTINTBYBASEALPHA", 2 } };
++static const ShaderComboVar_t s_skin_ps30_engDynamic[] = { { "WRITEWATERFOGTODESTALPHA", 2 }, { "PIXELFOGTYPE", 2 }, { "NUM_LIGHTS", 5 }, { "WRITE_DEPTH_TO_DESTALPHA", 2 }, { "FLASHLIGHTSHADOWS", 2 } };
++static const ShaderComboVar_t s_skin_ps30_sdkStatic[] = { { "CONVERT_TO_SRGB", 1 }, { "CUBEMAP", 2 }, { "SELFILLUM", 2 }, { "SELFILLUMFRESNEL", 2 }, { "FLASHLIGHT", 2 }, { "LIGHTWARPTEXTURE", 2 }, { "PHONGWARPTEXTURE", 2 }, { "WRINKLEMAP", 2 }, { "DETAIL_BLEND_MODE", 7 }, { "DETAILTEXTURE", 2 }, { "RIMLIGHT", 2 }, { "FLASHLIGHTDEPTHFILTERMODE", 3 }, { "FASTPATH_NOBUMP", 2 }, { "BLENDTINTBYBASEALPHA", 2 } };
++static const ShaderComboVar_t s_skin_ps30_sdkDynamic[] = { { "WRITEWATERFOGTODESTALPHA", 2 }, { "PIXELFOGTYPE", 3 }, { "NUM_LIGHTS", 5 }, { "WRITE_DEPTH_TO_DESTALPHA", 2 }, { "FLASHLIGHTSHADOWS", 2 }, { "PHONG_USE_EXPONENT_FACTOR", 2 } };
++static const ShaderComboVar_t s_sprite_ps20b_engStatic[] = { { "CONVERT_TO_SRGB", 2 }, { "VERTEXCOLOR", 2 }, { "CONSTANTCOLOR", 2 }, { "HDRTYPE", 3 }, { "SRGB", 2 }, { "SRGB_OUTPUT_ADAPTER", 2 } };
++static const ShaderComboVar_t s_sprite_ps20b_engDynamic[] = { { "HDRENABLED", 2 }, { "PIXELFOGTYPE", 2 } };
++static const ShaderComboVar_t s_sprite_ps20b_sdkStatic[] = { { "CONVERT_TO_SRGB", 2 }, { "VERTEXCOLOR", 2 }, { "CONSTANTCOLOR", 2 }, { "HDRTYPE", 3 }, { "SRGB", 2 }, { "SRGB_OUTPUT_ADAPTER", 2 } };
++static const ShaderComboVar_t s_sprite_ps20b_sdkDynamic[] = { { "HDRENABLED", 2 }, { "PIXELFOGTYPE", 3 } };
++static const ShaderComboVar_t s_teeth_bump_ps20b_engStatic[] = { { "CONVERT_TO_SRGB", 2 } };
++static const ShaderComboVar_t s_teeth_bump_ps20b_engDynamic[] = { { "PIXELFOGTYPE", 2 }, { "NUM_LIGHTS", 5 }, { "AMBIENT_LIGHT", 2 }, { "WRITE_DEPTH_TO_DESTALPHA", 2 } };
++static const ShaderComboVar_t s_teeth_bump_ps20b_sdkStatic[] = { { "CONVERT_TO_SRGB", 2 } };
++static const ShaderComboVar_t s_teeth_bump_ps20b_sdkDynamic[] = { { "PIXELFOGTYPE", 3 }, { "NUM_LIGHTS", 5 }, { "AMBIENT_LIGHT", 2 }, { "WRITE_DEPTH_TO_DESTALPHA", 2 } };
++static const ShaderComboVar_t s_teeth_bump_ps30_engStatic[] = { { "CONVERT_TO_SRGB", 2 } };
++static const ShaderComboVar_t s_teeth_bump_ps30_engDynamic[] = { { "PIXELFOGTYPE", 2 }, { "NUM_LIGHTS", 5 }, { "AMBIENT_LIGHT", 2 }, { "WRITE_DEPTH_TO_DESTALPHA", 2 } };
++static const ShaderComboVar_t s_teeth_bump_ps30_sdkStatic[] = { { "CONVERT_TO_SRGB", 2 } };
++static const ShaderComboVar_t s_teeth_bump_ps30_sdkDynamic[] = { { "PIXELFOGTYPE", 3 }, { "NUM_LIGHTS", 5 }, { "AMBIENT_LIGHT", 2 }, { "WRITE_DEPTH_TO_DESTALPHA", 2 } };
++static const ShaderComboVar_t s_teeth_flashlight_ps20b_engStatic[] = { { "CONVERT_TO_SRGB", 2 }, { "FLASHLIGHTDEPTHFILTERMODE", 3 } };
++static const ShaderComboVar_t s_teeth_flashlight_ps20b_engDynamic[] = { { "PIXELFOGTYPE", 2 }, { "FLASHLIGHTSHADOWS", 2 } };
++static const ShaderComboVar_t s_teeth_flashlight_ps20b_sdkStatic[] = { { "CONVERT_TO_SRGB", 2 }, { "FLASHLIGHTDEPTHFILTERMODE", 3 } };
++static const ShaderComboVar_t s_teeth_flashlight_ps20b_sdkDynamic[] = { { "PIXELFOGTYPE", 3 }, { "FLASHLIGHTSHADOWS", 2 } };
++static const ShaderComboVar_t s_teeth_flashlight_ps30_engStatic[] = { { "CONVERT_TO_SRGB", 2 }, { "FLASHLIGHTDEPTHFILTERMODE", 3 } };
++static const ShaderComboVar_t s_teeth_flashlight_ps30_engDynamic[] = { { "PIXELFOGTYPE", 2 }, { "FLASHLIGHTSHADOWS", 2 } };
++static const ShaderComboVar_t s_teeth_flashlight_ps30_sdkStatic[] = { { "CONVERT_TO_SRGB", 2 }, { "FLASHLIGHTDEPTHFILTERMODE", 3 } };
++static const ShaderComboVar_t s_teeth_flashlight_ps30_sdkDynamic[] = { { "PIXELFOGTYPE", 3 }, { "FLASHLIGHTSHADOWS", 2 } };
++static const ShaderComboVar_t s_teeth_ps20b_engStatic[] = { { "CONVERT_TO_SRGB", 2 } };
++static const ShaderComboVar_t s_teeth_ps20b_engDynamic[] = { { "PIXELFOGTYPE", 2 }, { "WRITE_DEPTH_TO_DESTALPHA", 2 } };
++static const ShaderComboVar_t s_teeth_ps20b_sdkStatic[] = { { "CONVERT_TO_SRGB", 2 } };
++static const ShaderComboVar_t s_teeth_ps20b_sdkDynamic[] = { { "PIXELFOGTYPE", 3 }, { "WRITE_DEPTH_TO_DESTALPHA", 2 } };
++static const ShaderComboVar_t s_teeth_ps30_engStatic[] = { { "CONVERT_TO_SRGB", 2 } };
++static const ShaderComboVar_t s_teeth_ps30_engDynamic[] = { { "PIXELFOGTYPE", 2 }, { "WRITE_DEPTH_TO_DESTALPHA", 2 } };
++static const ShaderComboVar_t s_teeth_ps30_sdkStatic[] = { { "CONVERT_TO_SRGB", 2 } };
++static const ShaderComboVar_t s_teeth_ps30_sdkDynamic[] = { { "PIXELFOGTYPE", 3 }, { "WRITE_DEPTH_TO_DESTALPHA", 2 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_bump_ps20b_engStatic[] = { { "CUBEMAP", 2 }, { "DIFFUSELIGHTING", 2 }, { "LIGHTWARPTEXTURE", 2 }, { "SELFILLUM", 2 }, { "SELFILLUMFRESNEL", 2 }, { "NORMALMAPALPHAENVMAPMASK", 2 }, { "HALFLAMBERT", 2 }, { "FLASHLIGHT", 2 }, { "DETAILTEXTURE", 2 }, { "DETAIL_BLEND_MODE", 7 }, { "FLASHLIGHTDEPTHFILTERMODE", 3 }, { "BLENDTINTBYBASEALPHA", 2 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_bump_ps20b_engDynamic[] = { { "NUM_LIGHTS", 5 }, { "AMBIENT_LIGHT", 2 }, { "FLASHLIGHTSHADOWS", 2 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_bump_ps20b_sdkStatic[] = { { "CUBEMAP", 2 }, { "DIFFUSELIGHTING", 2 }, { "LIGHTWARPTEXTURE", 2 }, { "SELFILLUM", 2 }, { "SELFILLUMFRESNEL", 2 }, { "NORMALMAPALPHAENVMAPMASK", 2 }, { "HALFLAMBERT", 2 }, { "FLASHLIGHT", 2 }, { "DETAILTEXTURE", 2 }, { "DETAIL_BLEND_MODE", 7 }, { "FLASHLIGHTDEPTHFILTERMODE", 3 }, { "BLENDTINTBYBASEALPHA", 2 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_bump_ps20b_sdkDynamic[] = { { "PIXELFOGTYPE", 3 }, { "NUM_LIGHTS", 5 }, { "AMBIENT_LIGHT", 2 }, { "FLASHLIGHTSHADOWS", 2 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_bump_ps30_engStatic[] = { { "CUBEMAP", 2 }, { "DIFFUSELIGHTING", 2 }, { "LIGHTWARPTEXTURE", 2 }, { "SELFILLUM", 2 }, { "SELFILLUMFRESNEL", 2 }, { "NORMALMAPALPHAENVMAPMASK", 2 }, { "HALFLAMBERT", 2 }, { "FLASHLIGHT", 2 }, { "DETAILTEXTURE", 2 }, { "DETAIL_BLEND_MODE", 7 }, { "FLASHLIGHTDEPTHFILTERMODE", 3 }, { "BLENDTINTBYBASEALPHA", 2 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_bump_ps30_engDynamic[] = { { "NUM_LIGHTS", 5 }, { "AMBIENT_LIGHT", 2 }, { "FLASHLIGHTSHADOWS", 2 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_bump_ps30_sdkStatic[] = { { "CUBEMAP", 2 }, { "DIFFUSELIGHTING", 2 }, { "LIGHTWARPTEXTURE", 2 }, { "SELFILLUM", 2 }, { "SELFILLUMFRESNEL", 2 }, { "NORMALMAPALPHAENVMAPMASK", 2 }, { "HALFLAMBERT", 2 }, { "FLASHLIGHT", 2 }, { "DETAILTEXTURE", 2 }, { "DETAIL_BLEND_MODE", 7 }, { "FLASHLIGHTDEPTHFILTERMODE", 3 }, { "BLENDTINTBYBASEALPHA", 2 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_bump_ps30_sdkDynamic[] = { { "PIXELFOGTYPE", 3 }, { "NUM_LIGHTS", 5 }, { "AMBIENT_LIGHT", 2 }, { "FLASHLIGHTSHADOWS", 2 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_ps20_engStatic[] = { { "DETAILTEXTURE", 2 }, { "CUBEMAP", 2 }, { "DIFFUSELIGHTING", 2 }, { "ENVMAPMASK", 2 }, { "BASEALPHAENVMAPMASK", 2 }, { "SELFILLUM", 2 }, { "VERTEXCOLOR", 2 }, { "FLASHLIGHT", 2 }, { "SELFILLUM_ENVMAPMASK_ALPHA", 2 }, { "DETAIL_BLEND_MODE", 10 }, { "SEAMLESS_BASE", 2 }, { "SEAMLESS_DETAIL", 2 }, { "DISTANCEALPHA", 2 }, { "DISTANCEALPHAFROMDETAIL", 2 }, { "SOFT_MASK", 2 }, { "OUTLINE", 2 }, { "OUTER_GLOW", 2 }, { "BLENDTINTBYBASEALPHA", 2 }, { "CUBEMAP_SPHERE_LEGACY", 2 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_ps20_engDynamic[] = { { "PIXELFOGTYPE", 2 }, { "LIGHTING_PREVIEW", 3 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_ps20_sdkStatic[] = { { "DETAILTEXTURE", 2 }, { "CUBEMAP", 2 }, { "DIFFUSELIGHTING", 2 }, { "ENVMAPMASK", 2 }, { "BASEALPHAENVMAPMASK", 2 }, { "SELFILLUM", 2 }, { "VERTEXCOLOR", 2 }, { "FLASHLIGHT", 2 }, { "SELFILLUM_ENVMAPMASK_ALPHA", 2 }, { "DETAIL_BLEND_MODE", 10 }, { "SEAMLESS_BASE", 2 }, { "SEAMLESS_DETAIL", 2 }, { "DISTANCEALPHA", 2 }, { "DISTANCEALPHAFROMDETAIL", 2 }, { "SOFT_MASK", 2 }, { "OUTLINE", 2 }, { "OUTER_GLOW", 2 }, { "BLENDTINTBYBASEALPHA", 2 }, { "CUBEMAP_SPHERE_LEGACY", 2 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_ps20_sdkDynamic[] = { { "PIXELFOGTYPE", 2 }, { "LIGHTING_PREVIEW", 3 }, { "STATIC_LIGHT_LIGHTMAP", 1 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_ps20b_engStatic[] = { { "DETAILTEXTURE", 2 }, { "CUBEMAP", 2 }, { "DIFFUSELIGHTING", 2 }, { "ENVMAPMASK", 2 }, { "BASEALPHAENVMAPMASK", 2 }, { "SELFILLUM", 2 }, { "VERTEXCOLOR", 2 }, { "FLASHLIGHT", 2 }, { "SELFILLUM_ENVMAPMASK_ALPHA", 2 }, { "DETAIL_BLEND_MODE", 10 }, { "SEAMLESS_BASE", 2 }, { "SEAMLESS_DETAIL", 2 }, { "DISTANCEALPHA", 2 }, { "DISTANCEALPHAFROMDETAIL", 2 }, { "SOFT_MASK", 2 }, { "OUTLINE", 2 }, { "OUTER_GLOW", 2 }, { "FLASHLIGHTDEPTHFILTERMODE", 3 }, { "DEPTHBLEND", 2 }, { "BLENDTINTBYBASEALPHA", 2 }, { "SRGB_INPUT_ADAPTER", 2 }, { "CUBEMAP_SPHERE_LEGACY", 2 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_ps20b_engDynamic[] = { { "LIGHTING_PREVIEW", 3 }, { "FLASHLIGHTSHADOWS", 2 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_ps20b_sdkStatic[] = { { "DETAILTEXTURE", 2 }, { "CUBEMAP", 2 }, { "DIFFUSELIGHTING", 2 }, { "ENVMAPMASK", 2 }, { "BASEALPHAENVMAPMASK", 2 }, { "SELFILLUM", 2 }, { "VERTEXCOLOR", 2 }, { "FLASHLIGHT", 2 }, { "SELFILLUM_ENVMAPMASK_ALPHA", 2 }, { "DETAIL_BLEND_MODE", 10 }, { "SEAMLESS_BASE", 2 }, { "SEAMLESS_DETAIL", 2 }, { "DISTANCEALPHA", 2 }, { "DISTANCEALPHAFROMDETAIL", 2 }, { "SOFT_MASK", 2 }, { "OUTLINE", 2 }, { "OUTER_GLOW", 2 }, { "FLASHLIGHTDEPTHFILTERMODE", 3 }, { "DEPTHBLEND", 2 }, { "BLENDTINTBYBASEALPHA", 2 }, { "SRGB_INPUT_ADAPTER", 2 }, { "CUBEMAP_SPHERE_LEGACY", 2 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_ps20b_sdkDynamic[] = { { "PIXELFOGTYPE", 3 }, { "LIGHTING_PREVIEW", 3 }, { "FLASHLIGHTSHADOWS", 2 }, { "STATIC_LIGHT_LIGHTMAP", 2 }, { "DEBUG_LUXELS", 2 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_ps30_engStatic[] = { { "DETAILTEXTURE", 2 }, { "CUBEMAP", 2 }, { "DIFFUSELIGHTING", 2 }, { "ENVMAPMASK", 2 }, { "BASEALPHAENVMAPMASK", 2 }, { "SELFILLUM", 2 }, { "VERTEXCOLOR", 2 }, { "FLASHLIGHT", 2 }, { "SELFILLUM_ENVMAPMASK_ALPHA", 2 }, { "DETAIL_BLEND_MODE", 10 }, { "SEAMLESS_BASE", 2 }, { "SEAMLESS_DETAIL", 2 }, { "DISTANCEALPHA", 2 }, { "DISTANCEALPHAFROMDETAIL", 2 }, { "SOFT_MASK", 2 }, { "OUTLINE", 2 }, { "OUTER_GLOW", 2 }, { "FLASHLIGHTDEPTHFILTERMODE", 3 }, { "DEPTHBLEND", 2 }, { "BLENDTINTBYBASEALPHA", 2 }, { "CUBEMAP_SPHERE_LEGACY", 2 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_ps30_engDynamic[] = { { "LIGHTING_PREVIEW", 3 }, { "FLASHLIGHTSHADOWS", 2 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_ps30_sdkStatic[] = { { "DETAILTEXTURE", 2 }, { "CUBEMAP", 2 }, { "DIFFUSELIGHTING", 2 }, { "ENVMAPMASK", 2 }, { "BASEALPHAENVMAPMASK", 2 }, { "SELFILLUM", 2 }, { "VERTEXCOLOR", 2 }, { "FLASHLIGHT", 2 }, { "SELFILLUM_ENVMAPMASK_ALPHA", 2 }, { "DETAIL_BLEND_MODE", 10 }, { "SEAMLESS_BASE", 2 }, { "SEAMLESS_DETAIL", 2 }, { "DISTANCEALPHA", 2 }, { "DISTANCEALPHAFROMDETAIL", 2 }, { "SOFT_MASK", 2 }, { "OUTLINE", 2 }, { "OUTER_GLOW", 2 }, { "FLASHLIGHTDEPTHFILTERMODE", 3 }, { "DEPTHBLEND", 2 }, { "BLENDTINTBYBASEALPHA", 2 }, { "CUBEMAP_SPHERE_LEGACY", 2 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_ps30_sdkDynamic[] = { { "PIXELFOGTYPE", 3 }, { "LIGHTING_PREVIEW", 3 }, { "FLASHLIGHTSHADOWS", 2 }, { "STATIC_LIGHT_LIGHTMAP", 2 }, { "DEBUG_LUXELS", 2 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_vs20_engStatic[] = { { "VERTEXCOLOR", 2 }, { "CUBEMAP", 2 }, { "HALFLAMBERT", 2 }, { "FLASHLIGHT", 2 }, { "SEAMLESS_BASE", 2 }, { "SEAMLESS_DETAIL", 2 }, { "SEPARATE_DETAIL_UVS", 2 }, { "USE_STATIC_CONTROL_FLOW", 2 }, { "DONT_GAMMA_CONVERT_VERTEX_COLOR", 2 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_vs20_engDynamic[] = { { "COMPRESSED_VERTS", 2 }, { "DYNAMIC_LIGHT", 2 }, { "STATIC_LIGHT_VERTEX", 2 }, { "DOWATERFOG", 2 }, { "SKINNING", 2 }, { "LIGHTING_PREVIEW", 2 }, { "NUM_LIGHTS", 3 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_vs20_sdkStatic[] = { { "VERTEXCOLOR", 2 }, { "CUBEMAP", 2 }, { "HALFLAMBERT", 2 }, { "FLASHLIGHT", 2 }, { "SEAMLESS_BASE", 2 }, { "SEAMLESS_DETAIL", 2 }, { "SEPARATE_DETAIL_UVS", 2 }, { "USE_STATIC_CONTROL_FLOW", 2 }, { "DONT_GAMMA_CONVERT_VERTEX_COLOR", 2 }, { "TREESWAY", 3 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_vs20_sdkDynamic[] = { { "COMPRESSED_VERTS", 2 }, { "DYNAMIC_LIGHT", 2 }, { "STATIC_LIGHT_VERTEX", 2 }, { "STATIC_LIGHT_LIGHTMAP", 2 }, { "DOWATERFOG", 2 }, { "SKINNING", 2 }, { "LIGHTING_PREVIEW", 2 }, { "NUM_LIGHTS", 3 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_vs30_engStatic[] = { { "VERTEXCOLOR", 2 }, { "CUBEMAP", 2 }, { "HALFLAMBERT", 2 }, { "FLASHLIGHT", 2 }, { "SEAMLESS_BASE", 2 }, { "SEAMLESS_DETAIL", 2 }, { "SEPARATE_DETAIL_UVS", 2 }, { "DECAL", 2 }, { "DONT_GAMMA_CONVERT_VERTEX_COLOR", 2 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_vs30_engDynamic[] = { { "COMPRESSED_VERTS", 2 }, { "DYNAMIC_LIGHT", 2 }, { "STATIC_LIGHT_VERTEX", 2 }, { "DOWATERFOG", 2 }, { "SKINNING", 2 }, { "LIGHTING_PREVIEW", 2 }, { "MORPHING", 2 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_vs30_sdkStatic[] = { { "VERTEXCOLOR", 2 }, { "CUBEMAP", 2 }, { "HALFLAMBERT", 2 }, { "FLASHLIGHT", 2 }, { "SEAMLESS_BASE", 2 }, { "SEAMLESS_DETAIL", 2 }, { "SEPARATE_DETAIL_UVS", 2 }, { "DECAL", 2 }, { "DONT_GAMMA_CONVERT_VERTEX_COLOR", 2 }, { "TREESWAY", 3 } };
++static const ShaderComboVar_t s_vertexlit_and_unlit_generic_vs30_sdkDynamic[] = { { "COMPRESSED_VERTS", 2 }, { "DYNAMIC_LIGHT", 2 }, { "STATIC_LIGHT_VERTEX", 2 }, { "STATIC_LIGHT_LIGHTMAP", 2 }, { "DOWATERFOG", 2 }, { "SKINNING", 2 }, { "LIGHTING_PREVIEW", 2 }, { "MORPHING", 2 } };
++static const ShaderComboVar_t s_water_ps20b_engStatic[] = { { "CONVERT_TO_SRGB", 2 }, { "BASETEXTURE", 2 }, { "MULTITEXTURE", 2 }, { "REFLECT", 2 }, { "REFRACT", 2 }, { "ABOVEWATER", 2 }, { "BLURRY_REFRACT", 2 }, { "NORMAL_DECODE_MODE", 1 } };
++static const ShaderComboVar_t s_water_ps20b_engDynamic[] = { { "PIXELFOGTYPE", 2 }, { "WRITE_DEPTH_TO_DESTALPHA", 2 } };
++static const ShaderComboVar_t s_water_ps20b_sdkStatic[] = { { "CONVERT_TO_SRGB", 2 }, { "BASETEXTURE", 2 }, { "MULTITEXTURE", 2 }, { "REFLECT", 2 }, { "REFRACT", 2 }, { "ABOVEWATER", 2 }, { "BLURRY_REFRACT", 2 }, { "NORMAL_DECODE_MODE", 1 } };
++static const ShaderComboVar_t s_water_ps20b_sdkDynamic[] = { { "PIXELFOGTYPE", 3 }, { "WRITE_DEPTH_TO_DESTALPHA", 2 } };
++static const ShaderComboVar_t s_watercheap_ps20b_engStatic[] = { { "CONVERT_TO_SRGB", 2 }, { "MULTITEXTURE", 2 }, { "FRESNEL", 2 }, { "BLEND", 2 }, { "REFRACTALPHA", 2 }, { "HDRTYPE", 3 }, { "NORMAL_DECODE_MODE", 1 } };
++static const ShaderComboVar_t s_watercheap_ps20b_engDynamic[] = { { "HDRENABLED", 2 }, { "PIXELFOGTYPE", 2 } };
++static const ShaderComboVar_t s_watercheap_ps20b_sdkStatic[] = { { "CONVERT_TO_SRGB", 2 }, { "MULTITEXTURE", 2 }, { "FRESNEL", 2 }, { "BLEND", 2 }, { "REFRACTALPHA", 2 }, { "HDRTYPE", 3 }, { "NORMAL_DECODE_MODE", 1 } };
++static const ShaderComboVar_t s_watercheap_ps20b_sdkDynamic[] = { { "HDRENABLED", 2 }, { "PIXELFOGTYPE", 3 } };
++static const ShaderComboVar_t s_windowimposter_ps20b_engStatic[] = { { "CONVERT_TO_SRGB", 2 } };
++static const ShaderComboVar_t s_windowimposter_ps20b_engDynamic[] = { { "PIXELFOGTYPE", 2 } };
++static const ShaderComboVar_t s_windowimposter_ps20b_sdkStatic[] = { { "CONVERT_TO_SRGB", 2 } };
++static const ShaderComboVar_t s_windowimposter_ps20b_sdkDynamic[] = { { "PIXELFOGTYPE", 3 } };
++
++#define SHADERCOMBO_LAYOUT(n, es, ed, ns, nd) { #n, s_##n##_engStatic, es, s_##n##_engDynamic, ed, s_##n##_sdkStatic, ns, s_##n##_sdkDynamic, nd }
++static const ShaderComboLayouts_t s_ShaderComboLayouts[] =
++{
++	SHADERCOMBO_LAYOUT( cable_ps20b, 1, 2, 1, 2 ),
++	SHADERCOMBO_LAYOUT( decalmodulate_ps20b, 1, 1, 1, 1 ),
++	SHADERCOMBO_LAYOUT( decalmodulate_ps30, 1, 1, 1, 1 ),
++	SHADERCOMBO_LAYOUT( depthwrite_vs20, 2, 2, 3, 2 ),
++	SHADERCOMBO_LAYOUT( depthwrite_vs30, 2, 3, 3, 3 ),
++	SHADERCOMBO_LAYOUT( eye_refract_ps20b, 5, 2, 5, 3 ),
++	SHADERCOMBO_LAYOUT( eye_refract_ps30, 5, 2, 5, 3 ),
++	SHADERCOMBO_LAYOUT( eyes_flashlight_ps20b, 1, 2, 1, 2 ),
++	SHADERCOMBO_LAYOUT( eyes_flashlight_ps30, 1, 2, 1, 2 ),
++	SHADERCOMBO_LAYOUT( eyes_ps20b, 0, 2, 0, 2 ),
++	SHADERCOMBO_LAYOUT( eyes_ps30, 0, 2, 0, 2 ),
++	SHADERCOMBO_LAYOUT( lightmappedgeneric_decal_ps20b, 1, 1, 1, 1 ),
++	SHADERCOMBO_LAYOUT( lightmappedgeneric_ps20b, 23, 6, 23, 7 ),
++	SHADERCOMBO_LAYOUT( refract_ps20b, 10, 2, 10, 2 ),
++	SHADERCOMBO_LAYOUT( skin_ps20b, 14, 5, 14, 6 ),
++	SHADERCOMBO_LAYOUT( skin_ps30, 14, 5, 14, 6 ),
++	SHADERCOMBO_LAYOUT( sprite_ps20b, 6, 2, 6, 2 ),
++	SHADERCOMBO_LAYOUT( teeth_bump_ps20b, 1, 4, 1, 4 ),
++	SHADERCOMBO_LAYOUT( teeth_bump_ps30, 1, 4, 1, 4 ),
++	SHADERCOMBO_LAYOUT( teeth_flashlight_ps20b, 2, 2, 2, 2 ),
++	SHADERCOMBO_LAYOUT( teeth_flashlight_ps30, 2, 2, 2, 2 ),
++	SHADERCOMBO_LAYOUT( teeth_ps20b, 1, 2, 1, 2 ),
++	SHADERCOMBO_LAYOUT( teeth_ps30, 1, 2, 1, 2 ),
++	SHADERCOMBO_LAYOUT( vertexlit_and_unlit_generic_bump_ps20b, 12, 3, 12, 4 ),
++	SHADERCOMBO_LAYOUT( vertexlit_and_unlit_generic_bump_ps30, 12, 3, 12, 4 ),
++	SHADERCOMBO_LAYOUT( vertexlit_and_unlit_generic_ps20, 19, 2, 19, 3 ),
++	SHADERCOMBO_LAYOUT( vertexlit_and_unlit_generic_ps20b, 22, 2, 22, 5 ),
++	SHADERCOMBO_LAYOUT( vertexlit_and_unlit_generic_ps30, 21, 2, 21, 5 ),
++	SHADERCOMBO_LAYOUT( vertexlit_and_unlit_generic_vs20, 9, 7, 10, 8 ),
++	SHADERCOMBO_LAYOUT( vertexlit_and_unlit_generic_vs30, 9, 7, 10, 8 ),
++	SHADERCOMBO_LAYOUT( water_ps20b, 8, 2, 8, 2 ),
++	SHADERCOMBO_LAYOUT( watercheap_ps20b, 7, 2, 7, 2 ),
++	SHADERCOMBO_LAYOUT( windowimposter_ps20b, 1, 1, 1, 1 ),
++};
++
++#endif // SHADERCOMBOREMAP_H
