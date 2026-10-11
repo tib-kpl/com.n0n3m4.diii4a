@@ -681,6 +681,53 @@ void Q3E_Oboe_Start(void) __attribute__((weak));
 }
 #endif
 
+// The OpenAL Soft device (libopenal.so) of the engines that use it (RealRTCW, DOOM 3...): the game thread waits for
+// the window in background, but the device keeps mixing its sources, looping sounds and the music's last buffers.
+// Paused with ALC_SOFT_pause_device; RTLD_NOLOAD: only if the engine has loaded the library
+#include <dlfcn.h>
+static void *q3e_alPausedDevice = NULL;
+
+static void * Q3E_OpenAL_Symbol(const char *name)
+{
+    void *lib = dlopen("libopenal.so", RTLD_NOW | RTLD_NOLOAD);
+    if(!lib)
+        return NULL;
+    void *sym = dlsym(lib, name);
+    dlclose(lib); // NOLOAD added a reference
+    return sym;
+}
+
+static void * Q3E_OpenAL_CurrentDevice(void)
+{
+    void * (*getCurrentContext)(void) = (void * (*)(void))Q3E_OpenAL_Symbol("alcGetCurrentContext");
+    void * (*getContextsDevice)(void *) = (void * (*)(void *))Q3E_OpenAL_Symbol("alcGetContextsDevice");
+    if(!getCurrentContext || !getContextsDevice)
+        return NULL;
+    void *context = getCurrentContext();
+    return context ? getContextsDevice(context) : NULL;
+}
+
+static void Q3E_OpenAL_Pause(void)
+{
+    void (*devicePause)(void *) = (void (*)(void *))Q3E_OpenAL_Symbol("alcDevicePauseSOFT");
+    void *device = Q3E_OpenAL_CurrentDevice();
+    if(!devicePause || !device)
+        return;
+    devicePause(device);
+    q3e_alPausedDevice = device;
+}
+
+static void Q3E_OpenAL_Resume(void)
+{
+    if(!q3e_alPausedDevice)
+        return;
+    void (*deviceResume)(void *) = (void (*)(void *))Q3E_OpenAL_Symbol("alcDeviceResumeSOFT");
+    // only the device paused here: the engine may have closed it and opened another
+    if(deviceResume && Q3E_OpenAL_CurrentDevice() == q3e_alPausedDevice)
+        deviceResume(q3e_alPausedDevice);
+    q3e_alPausedDevice = NULL;
+}
+
 // View paused
 void Q3E_OnPause(void)
 {
@@ -688,6 +735,7 @@ void Q3E_OnPause(void)
         q3e_paused = Q3E_TRUE;
     if(Q3E_Oboe_Stop)
         Q3E_Oboe_Stop();
+    Q3E_OpenAL_Pause();
 }
 
 // View resume
@@ -697,6 +745,7 @@ void Q3E_OnResume(void)
         q3e_paused = Q3E_FALSE;
     if(Q3E_Oboe_Start)
         Q3E_Oboe_Start();
+    Q3E_OpenAL_Resume();
 }
 
 // Request exit
