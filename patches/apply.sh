@@ -25,4 +25,5 @@ apply() # <submodule path> <patch>
 
 for p in patches/xash3d-fwgs-*.patch; do [ -e "$p" ] && apply Q3E/src/main/jni/xash3d/xash3d-fwgs "$p"; done
 for p in patches/hlsdk-portable-*.patch; do [ -e "$p" ] && apply Q3E/src/main/jni/xash3d/hlsdk-portable "$p"; done
+for p in patches/source-*.patch; do [ -e "$p" ] && apply Q3E/src/main/jni/source "$p"; done
 exit 0

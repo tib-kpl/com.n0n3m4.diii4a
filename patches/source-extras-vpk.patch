@@ -1,0 +1,19 @@
+diff --git a/launcher/android/main.inc b/launcher/android/main.inc
+index 018db8fd..83ff52c1 100644
+--- a/launcher/android/main.inc
++++ b/launcher/android/main.inc
+@@ -212,6 +212,14 @@ void Q3E_SetupEngineInteraction(HMODULE handle)
+ 	setenv("APP_DATA_PATH", Sys_GameDataDefaultPath(), 1);
+ 	// game resource path: data path
+ 	setenv("VALVE_GAME_PATH", Sys_GameDataDefaultPath(), 1);
++	// the app's extras (touch buttons' materials, shaders fixed for GLES...), extracted next to the fonts: mounted first,
++	// before the game's VPKs. Never set before, so they were not loaded at all
++	if(!getenv("EXTRAS_VPK_PATH"))
++	{
++		char extrasPath[1024];
++		snprintf(extrasPath, sizeof(extrasPath), "%s/files/extras_dir.vpk", Sys_GameDataDefaultPath());
++		setenv("EXTRAS_VPK_PATH", extrasPath, 1);
++	}
+ 	// APP_MOD_LIB
+ 
+ 	Msg("GetTotalMemory() = %.2f \n", GetTotalMemory());
