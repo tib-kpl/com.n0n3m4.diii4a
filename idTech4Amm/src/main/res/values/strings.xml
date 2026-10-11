@@ -500,6 +500,8 @@
     <string name="portrait_orientation_screen">Portrait orientation screen</string>
     <string name="renderer_ref">Renderer(ref)</string>
     <string name="server_client_sv_cl">Server/Client(sv_cl)</string>
+    <string name="source_language">Language, text and voices (-language, -audiolanguage); the voices need the game's *_sound_vo_LANGUAGE VPKs</string>
+    <string name="source_language_auto">Device language</string>
     <string name="halflife_2_base">Half-Life 2</string>
     <string name="css_base">Counter-Strike: Source</string>
     <string name="portal_base">Portal</string>

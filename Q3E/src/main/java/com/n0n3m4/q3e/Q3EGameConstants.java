@@ -414,6 +414,8 @@ public final class Q3EGameConstants
     public static final String[] XASH3D_SV_CLS = {"", "hl", "cs16", "cs16_yapb",};
 
     public static final String[] SOURCE_ENGINE_SV_CLS = {"hl2", "cstrike", "portal", "dod", "episodic", "hl2mp", "hl1", /*"hl1mp",*/};
+    // -language / -audiolanguage, as the launcher's Source Engine language buttons; "": the device's (LANG)
+    public static final String[] SOURCE_ENGINE_LANGUAGES = {"", "english", "french", "german", "spanish", "italian", "russian", "brazilian", "schinese",};
 
     public static final String[] SDL_AUDIO_DRIVER = {"auto", "opensles", "aaudio",};
 

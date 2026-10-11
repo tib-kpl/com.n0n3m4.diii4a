@@ -859,6 +859,26 @@ public class GameLauncher extends Activity
 						RemoveParam("sv_cl");
 				}
 			}
+			else if (rgId == R.id.source_language)
+			{
+				if(Q3E.q3ei.isSource)
+				{
+					index = GetRadioGroupSelectIndex(radioGroup, id);
+					if(index < 0 || index >= Q3EGameConstants.SOURCE_ENGINE_LANGUAGES.length)
+						index = 0;
+					String value2 = Q3EGameConstants.SOURCE_ENGINE_LANGUAGES[index];
+					if(KStr.NotEmpty(value2))
+					{
+						SetParam("language", value2);
+						SetParam("audiolanguage", value2);
+					}
+					else
+					{
+						RemoveParam("language");
+						RemoveParam("audiolanguage");
+					}
+				}
+			}
 
 			// SDL
 			else if (rgId == R.id.sdl_audio_driver)
@@ -1585,6 +1605,9 @@ public class GameLauncher extends Activity
 
 		str = GetParam("sv_cl");
 		SyncCmdRadioGroup2V(V.source_sv_cl, "sv_cl", str, Q3EGameConstants.SOURCE_ENGINE_SV_CLS);
+
+		str = GetParam("language");
+		SyncCmdRadioGroup2V(V.source_language, "language", str, Q3EGameConstants.SOURCE_ENGINE_LANGUAGES);
 	}
 
 	private void Updatehacktings_UrT()
@@ -2362,6 +2385,17 @@ public class GameLauncher extends Activity
 		}
 		SelectRadioGroup(V.source_sv_cl, index);
 		V.source_sv_cl.setOnCheckedChangeListener(m_groupCheckChangeListener);
+
+		str = GetParam("language");
+		index = 0;
+		if(null != str)
+		{
+			index = Utility.ArrayIndexOf(Q3EGameConstants.SOURCE_ENGINE_LANGUAGES, str);
+			if(index < 0)
+				index = 0;
+		}
+		SelectRadioGroup(V.source_language, index);
+		V.source_language.setOnCheckedChangeListener(m_groupCheckChangeListener);
 	}
 
 	private void SetupUI_UrT()
@@ -5081,6 +5115,7 @@ public class GameLauncher extends Activity
 		public RadioGroup xash3d_sv_cl;
 		public LinearLayout source_section;
 		public RadioGroup source_sv_cl;
+		public RadioGroup source_language;
 		public LinearLayout sdl_section;
 		public RadioGroup sdl_audio_driver;
 		public LinearLayout openal_section;
@@ -5298,6 +5333,7 @@ public class GameLauncher extends Activity
 			xash3d_sv_cl = findViewById(R.id.xash3d_sv_cl);
 			source_section = findViewById(R.id.source_section);
 			source_sv_cl = findViewById(R.id.source_sv_cl);
+			source_language = findViewById(R.id.source_language);
 			sdl_section = findViewById(R.id.sdl_section);
 			sdl_audio_driver = findViewById(R.id.sdl_audio_driver);
 			openal_section = findViewById(R.id.openal_section);

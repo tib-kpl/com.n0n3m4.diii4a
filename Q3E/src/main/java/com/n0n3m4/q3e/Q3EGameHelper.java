@@ -1424,6 +1424,10 @@ class Q3EGameHelper
             Q3EJNI.Setenv("ALSOFT_DRIVERS", openalDriver, 1);
         // gamepad aim assist level, read by the engines that have it (common/aimassist/q3e_aimassist.h)
         Q3EJNI.Setenv("Q3E_AIM_ASSIST", preferences.getString(Q3EPreference.pref_harm_aim_assist, "0"), 1);
+        // Source Engine: text and voices in the device's language (LANG "fr" -> french, *_french.vpk mounted when there),
+        // there is no Steam to tell it; -language / -audiolanguage on the command line and a LANG set in the game's env still win
+        if(Q3E.q3ei.isSource)
+            Q3EJNI.Setenv("LANG", java.util.Locale.getDefault().getLanguage(), 0);
 
         boolean res = Q3EJNI.init(
                 engineLib,

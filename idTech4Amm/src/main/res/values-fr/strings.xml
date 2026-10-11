@@ -11,4 +11,6 @@
         <item>Forte</item>
     </string-array>
     <string name="full_size_textures">Textures en taille réelle, menus compris (image_downSize 0, quelle que soit la qualité vidéo du jeu)</string>
+    <string name="source_language">Langue, textes et voix (-language, -audiolanguage) ; les voix demandent les VPK *_sound_vo_LANGUE du jeu</string>
+    <string name="source_language_auto">Langue de l’appareil</string>
 </resources>
