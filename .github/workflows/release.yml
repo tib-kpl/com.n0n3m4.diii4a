@@ -74,12 +74,13 @@ jobs:
         run: sh patches/apply.sh
 
       # The group's libraries are built again only when something they are made of changed: the
-      # git trees of its folders, of the common ones and of the Gradle build, and its options.
+      # git trees of its folders, of the common ones, of the submodule patches and of the Gradle build,
+      # and its options. The patches count: a submodule's commit does not change when its patch does.
       - name: Fingerprint
         id: fingerprint
         run: |
           {
-            for p in ${{ matrix.paths }} Q3E/src/main/jni/common Q3E/src/main/jni/q3e Q3E/src/main/jni/deplibs                      Q3E/src/main/jni/depincs Q3E/src/main/jni/CMakeLists.txt Q3E/build.gradle build.gradle                      gradle.properties gradle/wrapper/gradle-wrapper.properties; do
+            for p in ${{ matrix.paths }} Q3E/src/main/jni/common Q3E/src/main/jni/q3e Q3E/src/main/jni/deplibs                      Q3E/src/main/jni/depincs Q3E/src/main/jni/CMakeLists.txt patches Q3E/build.gradle build.gradle                      gradle.properties gradle/wrapper/gradle-wrapper.properties; do
               echo "$p $(git rev-parse --verify -q "HEAD:$p" || echo none)"
             done
             echo "options ${{ matrix.options }} ${{ matrix.libs }}"
