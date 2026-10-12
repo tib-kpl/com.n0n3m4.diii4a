@@ -1013,7 +1013,75 @@ aimassist_done:
 }
 
 
-#ifdef __ANDROID__
+#ifdef __ANDROID__ // the launcher's gamepad aim assist (controller settings), with its tracking
+#include "aimassist/q3e_aimassist.h"
+
+#define CL_AIMASSIST_AITEAM_NEUTRAL 7 // AITEAM_NEUTRAL of game/ai_cast.h: civilians
+
+static int CL_AimAssistVisible( const float eye[3], const float point[3], void *user ) {
+	trace_t tr;
+
+	CM_BoxTrace( &tr, eye, point, vec3_origin, vec3_origin, 0, MASK_SOLID, qfalse );
+	return tr.fraction >= 1.0f;
+}
+
+/*
+=================
+CL_AimAssist
+
+The launcher's aim assist, as in RTCW: adjusts this frame's look input (from the view angles before it)
+toward the enemies of the snapshot (other characters, alive, neither on the player's team nor civilians),
+and follows the one under the crosshair, also without look input. Used instead of RealRTCW's own when the
+launcher's level is set
+=================
+*/
+static void CL_AimAssist( const vec3_t before ) {
+	q3e_aimTarget_t targets[Q3E_AIMASSIST_MAX_TARGETS];
+	const playerState_t *ps = &cl.snap.ps;
+	float eye[3], aim[2], delta[2];
+	int numTargets = 0;
+	int i;
+
+	if ( clc.state != CA_ACTIVE || !cl.snap.valid || cl_weaponWheelActive->integer ) {
+		return;
+	}
+	if ( ps->pm_type != PM_NORMAL || ps->stats[STAT_HEALTH] <= 0 ) {
+		return;
+	}
+
+	for ( i = 0; i < cl.snap.numEntities && numTargets < Q3E_AIMASSIST_MAX_TARGETS; i++ ) {
+		const entityState_t *es = &cl.parseEntities[( cl.snap.parseEntitiesNum + i ) & ( MAX_PARSE_ENTITIES - 1 )];
+
+		if ( es->eType != ET_PLAYER || es->number == ps->clientNum || ( es->eFlags & EF_DEAD ) ) {
+			continue;
+		}
+		if ( es->teamNum == ps->teamNum || es->teamNum == CL_AIMASSIST_AITEAM_NEUTRAL ) {
+			continue;
+		}
+		targets[numTargets].origin[0] = es->pos.trBase[0];
+		targets[numTargets].origin[1] = es->pos.trBase[1];
+		targets[numTargets].origin[2] = es->pos.trBase[2] + 20; // chest
+		targets[numTargets].radius = 18;
+		numTargets++;
+	}
+	if ( !numTargets ) {
+		return;
+	}
+
+	eye[0] = ps->origin[0];
+	eye[1] = ps->origin[1];
+	eye[2] = ps->origin[2] + ps->viewheight;
+	aim[0] = before[PITCH] + SHORT2ANGLE( ps->delta_angles[PITCH] );
+	aim[1] = before[YAW] + SHORT2ANGLE( ps->delta_angles[YAW] );
+	delta[0] = cl.viewangles[PITCH] - before[PITCH];
+	delta[1] = cl.viewangles[YAW] - before[YAW];
+
+	if ( Q3E_AimAssist_Apply( eye, aim, delta, cls.frametime * 0.001f, targets, numTargets, CL_AimAssistVisible, NULL ) ) {
+		cl.viewangles[PITCH] = before[PITCH] + delta[0];
+		cl.viewangles[YAW] = before[YAW] + delta[1];
+	}
+}
+
 /*
 =================
 CL_AimAssistMouse
@@ -1121,8 +1189,14 @@ void CL_MouseMove(usercmd_t *cmd) {
 	cl.mouseDx[cl.mouseIndex] = 0;
 	cl.mouseDy[cl.mouseIndex] = 0;
 
-	if (mx == 0.0f && my == 0.0f)
+	if (mx == 0.0f && my == 0.0f) {
+#ifdef __ANDROID__
+		if ( Q3E_AimAssist_Level() ) {
+			CL_AimAssist( aimBefore ); // the tracking also works without look input
+		}
+#endif
 		return;
+	}
 	
 	if (cl_mouseAccel->value != 0.0f)
 	{
@@ -1210,7 +1284,12 @@ if ( !cl_weaponWheelActive->integer ) {
 }
 
 #ifdef __ANDROID__
-	CL_AimAssistMouse( aimBefore );
+	// the launcher's aim assist when set in its controller settings, else RealRTCW's own (j_aimassist)
+	if ( Q3E_AimAssist_Level() ) {
+		CL_AimAssist( aimBefore );
+	} else {
+		CL_AimAssistMouse( aimBefore );
+	}
 #endif
 }
 

@@ -1,0 +1,162 @@
+diff --git a/game/client/in_main.cpp b/game/client/in_main.cpp
+index 69a882b6..bd096d5d 100644
+--- a/game/client/in_main.cpp
++++ b/game/client/in_main.cpp
+@@ -45,6 +45,71 @@ extern ConVar cam_idealyaw;
+ // For showing/hiding the scoreboard
+ #include <game/client/iviewport.h>
+ 
++#ifdef _DIII4A //karin: the gamepad aim assist of the launcher's controller settings, with its tracking
++#include <dlfcn.h>
++#include <link.h>
++#include "aimassist/q3e_aimassist.h"
++
++// the targets come from the server library of the same game (game/server/ai_basenpc.cpp), which knows the NPCs hostile
++// to the player: single player and listen server, in the same process
++typedef int (*Q3E_SourceAimAssistTargets_f)( float eye[3], float (*targets)[4], int maxTargets );
++
++static int Q3E_FindServerAimAssistTargets( struct dl_phdr_info *info, size_t size, void *data )
++{
++	if ( !info->dlpi_name || !strstr( info->dlpi_name, "libsource_server" ) )
++		return 0;
++	void *lib = dlopen( info->dlpi_name, RTLD_NOW | RTLD_NOLOAD );
++	if ( !lib )
++		return 0;
++	void *sym = dlsym( lib, "Q3E_SourceAimAssistTargets" );
++	dlclose( lib ); // NOLOAD added a reference
++	if ( !sym )
++		return 0;
++	*(void **)data = sym;
++	return 1;
++}
++
++// before: the view angles before this frame's look input, which the engine's view angles now include
++static void Q3E_SourceAimAssist( const QAngle &before, float frametime )
++{
++	static Q3E_SourceAimAssistTargets_f s_pfnTargets = NULL;
++	if ( !Q3E_AimAssist_Level() )
++		return;
++	if ( !s_pfnTargets )
++	{
++		dl_iterate_phdr( Q3E_FindServerAimAssistTargets, (void *)&s_pfnTargets );
++		if ( !s_pfnTargets )
++			return; // no local server (remote game)
++	}
++
++	float eye[3];
++	float found[Q3E_AIMASSIST_MAX_TARGETS][4];
++	int numFound = s_pfnTargets( eye, found, Q3E_AIMASSIST_MAX_TARGETS );
++	if ( numFound < 0 )
++		return;
++	q3e_aimTarget_t targets[Q3E_AIMASSIST_MAX_TARGETS];
++	for ( int i = 0; i < numFound; i++ )
++	{
++		targets[i].origin[0] = found[i][0];
++		targets[i].origin[1] = found[i][1];
++		targets[i].origin[2] = found[i][2];
++		targets[i].radius = found[i][3];
++	}
++
++	QAngle after;
++	engine->GetViewAngles( after );
++	float aim[2] = { before[PITCH], before[YAW] };
++	float delta[2] = { after[PITCH] - before[PITCH], Q3E_AimAssist_Normalize180( after[YAW] - before[YAW] ) };
++	// the server already kept the visible ones
++	if ( Q3E_AimAssist_Apply( eye, aim, delta, frametime, targets, numFound, NULL, NULL ) )
++	{
++		after[PITCH] = clamp( before[PITCH] + delta[0], -89.0f, 89.0f );
++		after[YAW] = before[YAW] + delta[1];
++		engine->SetViewAngles( after );
++	}
++}
++#endif
++
+ // memdbgon must be the last include file in a .cpp file!!!
+ #include "tier0/memdbgon.h"
+ 
+@@ -1158,6 +1223,9 @@ void CInput::CreateMove ( int sequence_number, float input_sample_frametime, boo
+ 
+ 		// Allow mice and other controllers to add their inputs
+ 		ControllerMove( input_sample_frametime, cmd );
++#ifdef _DIII4A
++		Q3E_SourceAimAssist( originalViewangles, input_sample_frametime );
++#endif
+ #ifdef SIXENSE
+ 		g_pSixenseInput->SixenseFrame( input_sample_frametime, cmd ); 
+ 
+diff --git a/game/server/ai_basenpc.cpp b/game/server/ai_basenpc.cpp
+index 0acc458f..cc6fe8ee 100644
+--- a/game/server/ai_basenpc.cpp
++++ b/game/server/ai_basenpc.cpp
+@@ -14129,3 +14129,71 @@ bool CAI_BaseNPC::IsInChoreo() const
+ {
+ 	return m_bInChoreo;
+ }
++
++#ifdef _DIII4A
++//karin: the gamepad aim assist's targets (common/aimassist/q3e_aimassist.h), for the client library of the same game,
++// which runs in the same process (single player, listen server): the local player's eye, and the enemies they see ahead,
++// NPCs hostile to them (not Alyx, nor the rebels...) and, in multiplayer, the other players not on their team: point to
++// aim at (chest) and body radius. Returns their number, -1 without a local player (a remote server)
++extern "C" __attribute__((visibility("default"))) int Q3E_SourceAimAssistTargets( float eye[3], float (*targets)[4], int maxTargets )
++{
++	CBasePlayer *pPlayer = gpGlobals->maxClients <= 1 ? UTIL_GetLocalPlayer() : UTIL_GetListenServerHost();
++	if ( !pPlayer )
++		return -1;
++
++	const Vector vecEye = pPlayer->EyePosition();
++	eye[0] = vecEye.x;
++	eye[1] = vecEye.y;
++	eye[2] = vecEye.z;
++	if ( !pPlayer->IsAlive() )
++		return 0;
++
++	Vector vecForward;
++	pPlayer->EyeVectors( &vecForward );
++
++	int numTargets = 0;
++	auto addTarget = [&]( CBaseCombatCharacter *pTarget )
++	{
++		if ( numTargets >= maxTargets )
++			return;
++		Vector vecAim = pTarget->BodyTarget( vecEye, false );
++		Vector vecDir = vecAim - vecEye;
++		float flDist = VectorNormalize( vecDir );
++		// ahead only (the assist zone is at most 15 degrees wide), before the line of sight trace
++		if ( flDist > 4096.0f || DotProduct( vecDir, vecForward ) < 0.7f )
++			return;
++		if ( !pPlayer->FVisible( pTarget ) )
++			return;
++		const Vector &vecMins = pTarget->CollisionProp()->OBBMins();
++		const Vector &vecMaxs = pTarget->CollisionProp()->OBBMaxs();
++		targets[numTargets][0] = vecAim.x;
++		targets[numTargets][1] = vecAim.y;
++		targets[numTargets][2] = vecAim.z;
++		targets[numTargets][3] = 0.5f * MAX( vecMaxs.x - vecMins.x, vecMaxs.y - vecMins.y );
++		numTargets++;
++	};
++
++	CAI_BaseNPC **ppAIs = g_AI_Manager.AccessAIs();
++	for ( int i = 0; i < g_AI_Manager.NumAIs(); i++ )
++	{
++		CAI_BaseNPC *pNPC = ppAIs[i];
++		if ( !pNPC || !pNPC->IsAlive() || pNPC->IsEffectActive( EF_NODRAW ) )
++			continue;
++		if ( pNPC->IRelationType( pPlayer ) != D_HT )
++			continue;
++		addTarget( pNPC );
++	}
++
++	for ( int i = 1; i <= gpGlobals->maxClients; i++ )
++	{
++		CBasePlayer *pOther = UTIL_PlayerByIndex( i );
++		if ( !pOther || pOther == pPlayer || !pOther->IsAlive() )
++			continue;
++		if ( g_pGameRules && g_pGameRules->IsTeamplay() && pOther->GetTeamNumber() == pPlayer->GetTeamNumber() )
++			continue;
++		addTarget( pOther );
++	}
++
++	return numTargets;
++}
++#endif
