@@ -1,41 +1,44 @@
 diff --git a/engine/engine_main.inc b/engine/engine_main.inc
-index 86272d46..b77138a7 100644
+index 86272d46..ddf62b7e 100644
 --- a/engine/engine_main.inc
 +++ b/engine/engine_main.inc
-@@ -43,6 +43,8 @@ inline void Q3E_Engine_AnalogEvent()
+@@ -43,6 +43,9 @@ inline void Q3E_Engine_AnalogEvent()
  #include "ienginetoolinternal.h"
  
  extern IGameConsole *staticGameConsole;
 +#include <GameUI/IGameUI.h>
++#include <vgui/ISurface.h>
 +extern IGameUI *staticGameUIFuncs;
  inline void Q3E_Engine_SyncState()
  {
  // Game states
-@@ -61,12 +63,22 @@ inline void Q3E_Engine_SyncState()
+@@ -61,12 +64,24 @@ inline void Q3E_Engine_SyncState()
  		int state = STATE_GAME;
  		auto panel = engineVGui->GetPanel(PANEL_CLIENTDLL);
  		bool inGame = cl.IsActive() && (panel && vgui::ipanel()->IsVisible(panel));
 -		if(!inGame)
 +		bool consoleVisible = staticGameConsole && staticGameConsole->IsConsoleVisible();
 +		//karin: the game UI over a level is a menu too: the pause menu, and the main menu over its background map (Half-Life 2
-+		// and its episodes), which neither the game UI root panel's visibility nor the client panel's tell: the main menu's own
++		// and its episodes). Neither the game UI root panel (always visible here), nor the client panel, nor the main menu
++		// panel (visible in game too) tell it: the mouse cursor does, shown in the menus and hidden in game
 +		bool gameUI = engineVGui->IsGameUIVisible();
++		bool cursor = vgui::surface()->IsCursorVisible();
 +		bool mainMenu = staticGameUIFuncs && staticGameUIFuncs->IsMainMenuVisible();
 +		bool background = sv.IsLevelMainMenuBackground();
 +		if(!inGame && consoleVisible)
 +			state = STATE_CONSOLE;
-+		// the main menu's own visibility stays on in game (its parent, the game UI, is what hides): only out of the game
-+		else if(!consoleVisible && (gameUI || background || (mainMenu && !inGame)))
++		else if(!consoleVisible && gameUI && (!inGame || cursor || background))
 +			state = STATE_MENU;
-+		static int s_lastState = -1;
-+		if(state != s_lastState)
++		static int s_lastFlags = -1;
++		int flags = state | (inGame << 8) | (consoleVisible << 9) | (gameUI << 10) | (cursor << 11) | (mainMenu << 12) | (background << 13);
++		if(flags != s_lastFlags)
  		{
 -			if(staticGameConsole && staticGameConsole->IsConsoleVisible())
 -				state = STATE_CONSOLE;
 -			else if(engineVGui->IsGameUIVisible())
 -				state = STATE_MENU;
-+			Msg("Q3E state %d (in game %d, console %d, game UI %d, main menu %d, background level %d)\n", state, inGame, consoleVisible, gameUI, mainMenu, background);
-+			s_lastState = state;
++			Msg("Q3E state %d (in game %d, console %d, game UI %d, cursor %d, main menu %d, background level %d)\n", state, inGame, consoleVisible, gameUI, cursor, mainMenu, background);
++			s_lastFlags = flags;
  		}
  		SyncState_f(state);
      }
