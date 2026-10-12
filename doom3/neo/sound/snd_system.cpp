@@ -2584,16 +2584,22 @@ int idSoundSystemLocal::GetAudioDeviceHash( const wchar_t* name ) const {
 #endif
 
 #if defined(__ANDROID__) && defined(_OPENAL)
+#include <dlfcn.h>
 //karin: the OpenAL device paused while the app is (ALC_SOFT_pause_device): the game waits for its window in background,
-// but the device keeps playing its looping sounds and the last of the music
+// but the device keeps playing its looping sounds and the last of the music. From libopenal.so, already loaded (the
+// engine loads only the OpenAL functions it uses)
 void Sys_AndroidPauseOpenAL(bool pause)
 {
 	ALCdevice *device = soundSystemLocal.openalDevice;
-	if (!idSoundSystemLocal::useOpenAL || !device || !alcIsExtensionPresent(device, "ALC_SOFT_pause_device"))
+	if (!idSoundSystemLocal::useOpenAL || !device)
 		return;
-	typedef void (ALC_APIENTRY *ALCdevicePause_f)(ALCdevice *);
-	ALCdevicePause_f func = (ALCdevicePause_f)alcGetProcAddress(device, pause ? "alcDevicePauseSOFT" : "alcDeviceResumeSOFT");
+	void *lib = dlopen("libopenal.so", RTLD_NOW | RTLD_NOLOAD);
+	if (!lib)
+		return;
+	typedef void (*ALCdevicePause_f)(ALCdevice *);
+	ALCdevicePause_f func = (ALCdevicePause_f)dlsym(lib, pause ? "alcDevicePauseSOFT" : "alcDeviceResumeSOFT");
 	if (func)
 		func(device);
+	dlclose(lib); // NOLOAD added a reference
 }
 #endif
