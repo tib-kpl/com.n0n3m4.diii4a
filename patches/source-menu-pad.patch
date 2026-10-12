@@ -1,13 +1,14 @@
 diff --git a/engine/engine_main.inc b/engine/engine_main.inc
-index 86272d46..f94ded06 100644
+index 86272d46..c435347a 100644
 --- a/engine/engine_main.inc
 +++ b/engine/engine_main.inc
-@@ -68,6 +68,9 @@ inline void Q3E_Engine_SyncState()
+@@ -68,6 +68,10 @@ inline void Q3E_Engine_SyncState()
  			else if(engineVGui->IsGameUIVisible())
  				state = STATE_MENU;
  		}
-+		//karin: the game UI over a level is a menu too: the pause menu, and the main menu over its background map
-+		else if(engineVGui->IsGameUIVisible() && !(staticGameConsole && staticGameConsole->IsConsoleVisible()))
++		//karin: the game UI over a level is a menu too: the pause menu, and the main menu over its background map (Half-Life 2
++		// and its episodes; the game UI root panel is not seen as visible there, so the level's own flag)
++		else if((engineVGui->IsGameUIVisible() || sv.IsLevelMainMenuBackground()) && !(staticGameConsole && staticGameConsole->IsConsoleVisible()))
 +			state = STATE_MENU;
  		SyncState_f(state);
      }
