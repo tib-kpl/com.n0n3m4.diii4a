@@ -155,6 +155,27 @@ public final class Q3EGamePadPresets
                 "button_start", "K_ESCAPE",
                 "button_select", "K_TAB"      // +showscores
         );
+        // Source Engine: Half-Life 2, its episodes, Deathmatch... (hl2/cfg/config_default.cfg, the same in all)
+        Add(Q3EGameConstants.GAME_SOURCE,
+                "button_r2", "K_MOUSE1",      // +attack
+                "button_l2", "K_MOUSE2",      // +attack2
+                "button_a", "K_SPACE",        // +jump
+                "button_b", "K_CTRL",         // +duck
+                "button_x", "K_E",            // +use
+                "button_y", "K_R",            // +reload
+                "button_l1", "K_MWHEELUP",    // invprev
+                "button_r1", "K_MWHEELDOWN",  // invnext
+                "button_l3", "K_SHIFT",       // +speed (sprint)
+                "button_r3", "K_Z",           // +zoom
+                "button_start", "K_ESCAPE",
+                "button_select", "K_TAB"      // +showscores
+        );
+        AddDPad(Q3EGameConstants.GAME_SOURCE,
+                "K_F",                        // impulse 100 (flashlight)
+                "K_Q",                        // lastinv
+                "K_G",                        // phys_swap (gravity gun)
+                "K_C"                         // impulse 50 (squad)
+        );
     }
 
     private Q3EGamePadPresets() {}
