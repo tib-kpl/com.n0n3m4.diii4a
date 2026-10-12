@@ -728,6 +728,59 @@ static void Q3E_OpenAL_Resume(void)
     q3e_alPausedDevice = NULL;
 }
 
+// The SDL audio devices (libSDL2.so) of the engines that use them (Source Engine, Xash3D, Serious Sam, FTEQW, ECWolf...):
+// SDL pauses them itself only from its SDLActivity, which the app does not use, so they kept calling the engine's mixer.
+// Paused here with the public API (silence, the engine's callback is not called): SDL's own Android pause keeps the mixer
+// locked until the resume, which would block the game thread, still running until it waits for the window
+#define Q3E_SDL_MAX_AUDIO_DEVICES 16 // SDL2's open_devices
+#define Q3E_SDL_AUDIO_PLAYING 1
+#define Q3E_SDL_AUDIO_PAUSED 2
+static unsigned int q3e_sdlPausedDevices = 0;
+
+static void * Q3E_SDL_Symbol(const char *name)
+{
+    void *lib = dlopen("libSDL2.so", RTLD_NOW | RTLD_NOLOAD);
+    if(!lib)
+        return NULL;
+    void *sym = dlsym(lib, name);
+    dlclose(lib); // NOLOAD added a reference
+    return sym;
+}
+
+static void Q3E_SDL_PauseAudio(void)
+{
+    int (*getStatus)(unsigned int) = (int (*)(unsigned int))Q3E_SDL_Symbol("SDL_GetAudioDeviceStatus");
+    void (*pauseDevice)(unsigned int, int) = (void (*)(unsigned int, int))Q3E_SDL_Symbol("SDL_PauseAudioDevice");
+    if(!getStatus || !pauseDevice)
+        return;
+    for(unsigned int id = 1; id <= Q3E_SDL_MAX_AUDIO_DEVICES; id++)
+    {
+        if(getStatus(id) == Q3E_SDL_AUDIO_PLAYING)
+        {
+            pauseDevice(id, 1);
+            q3e_sdlPausedDevices |= 1u << (id - 1);
+        }
+    }
+}
+
+static void Q3E_SDL_ResumeAudio(void)
+{
+    if(!q3e_sdlPausedDevices)
+        return;
+    int (*getStatus)(unsigned int) = (int (*)(unsigned int))Q3E_SDL_Symbol("SDL_GetAudioDeviceStatus");
+    void (*pauseDevice)(unsigned int, int) = (void (*)(unsigned int, int))Q3E_SDL_Symbol("SDL_PauseAudioDevice");
+    if(getStatus && pauseDevice)
+    {
+        // only the devices paused here, if the engine has not closed them since
+        for(unsigned int id = 1; id <= Q3E_SDL_MAX_AUDIO_DEVICES; id++)
+        {
+            if((q3e_sdlPausedDevices & (1u << (id - 1))) && getStatus(id) == Q3E_SDL_AUDIO_PAUSED)
+                pauseDevice(id, 0);
+        }
+    }
+    q3e_sdlPausedDevices = 0;
+}
+
 // View paused
 void Q3E_OnPause(void)
 {
@@ -736,6 +789,7 @@ void Q3E_OnPause(void)
     if(Q3E_Oboe_Stop)
         Q3E_Oboe_Stop();
     Q3E_OpenAL_Pause();
+    Q3E_SDL_PauseAudio();
 }
 
 // View resume
@@ -746,6 +800,7 @@ void Q3E_OnResume(void)
     if(Q3E_Oboe_Start)
         Q3E_Oboe_Start();
     Q3E_OpenAL_Resume();
+    Q3E_SDL_ResumeAudio();
 }
 
 // Request exit

@@ -600,11 +600,19 @@ void Q3E_Analog(int enable,float x,float y)
     analogy = y;
 }
 
+#ifdef _OPENAL
+extern void Sys_AndroidPauseOpenAL(bool pause); // sound/snd_system.cpp
+#endif
+
 // View paused
 void Q3E_OnPause(void)
 {
     if(common->IsInitialized())
         paused = true;
+#ifdef _OPENAL
+    if(common->IsInitialized())
+        Sys_AndroidPauseOpenAL(true);
+#endif
 }
 
 // View resume
@@ -612,6 +620,10 @@ void Q3E_OnResume(void)
 {
     if(common->IsInitialized())
         paused = false;
+#ifdef _OPENAL
+    if(common->IsInitialized())
+        Sys_AndroidPauseOpenAL(false);
+#endif
 }
 
 // Request exit

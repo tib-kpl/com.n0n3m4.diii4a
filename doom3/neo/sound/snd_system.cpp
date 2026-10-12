@@ -2582,3 +2582,18 @@ int idSoundSystemLocal::GetAudioDeviceHash( const wchar_t* name ) const {
 	return 0;
 }
 #endif
+
+#if defined(__ANDROID__) && defined(_OPENAL)
+//karin: the OpenAL device paused while the app is (ALC_SOFT_pause_device): the game waits for its window in background,
+// but the device keeps playing its looping sounds and the last of the music
+void Sys_AndroidPauseOpenAL(bool pause)
+{
+	ALCdevice *device = soundSystemLocal.openalDevice;
+	if (!idSoundSystemLocal::useOpenAL || !device || !alcIsExtensionPresent(device, "ALC_SOFT_pause_device"))
+		return;
+	typedef void (ALC_APIENTRY *ALCdevicePause_f)(ALCdevice *);
+	ALCdevicePause_f func = (ALCdevicePause_f)alcGetProcAddress(device, pause ? "alcDevicePauseSOFT" : "alcDeviceResumeSOFT");
+	if (func)
+		func(device);
+}
+#endif
