@@ -136,6 +136,14 @@ class Q3EEventEngineSDL extends Q3EEventEngineVirtualMouse
 	@Override
 	public void SendKeyEvent(boolean down, int keycode, int charcode)
 	{
+		// Source Engine: the mouse wheel keys come as Page Up / Page Down with these key codes (KeyCodesAndroid), which
+		// it does not bind: a wheel notch instead, for invprev / invnext (the pad's L1 / R1, the touch buttons)
+		if(Q3E.q3ei.isSource && (keycode == Q3EKeyCodes.KeyCodes.K_MWHEELUP || keycode == Q3EKeyCodes.KeyCodes.K_MWHEELDOWN))
+		{
+			if(down)
+				SendWheelEvent(0.0f, keycode == Q3EKeyCodes.KeyCodes.K_MWHEELUP ? 1.0f : -1.0f);
+			return;
+		}
 		if(keycode < 0)
 		{
 			Q3ESDL.onNativeMouse(-keycode, down ? MotionEvent.ACTION_DOWN : MotionEvent.ACTION_UP, Q3E.virtualMouse.GetX(), Q3E.virtualMouse.GetY(), Q3E.virtualMouse.IsRelativeMode());
