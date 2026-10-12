@@ -178,8 +178,9 @@ class Q3EGameButtonHandler extends Q3EOnScreenButtonHandler
     // game (the d-pad already comes as the arrows there): 0 when the key stays as it is.
     // Only when the game reports a menu (STATE_MENU: the engines report only real ones, not loading
     // or in-game screens), never while loading. Only the games whose menus are worked with the keys:
-    // not the cursor menus of idTech 4, OpenMoHAA or Source (A may be the click there), nor RTCW and RealRTCW,
-    // whose own pad handling does it
+    // not the cursor menus of idTech 4 or OpenMoHAA (A may be the click there), nor RTCW and RealRTCW,
+    // whose own pad handling does it. Source: its main menu takes Enter on the button the arrows select, and Escape
+    // closes its open dialog (patches of the source submodule)
     private int MenuPadKey(int keyCode, KeyEvent event)
     {
         if(Q3E.callbackObj == null || !Q3EControllerControl.IsGamePadKeyEvent(event) || !HasKeyMenus())
@@ -216,7 +217,7 @@ class Q3EGameButtonHandler extends Q3EOnScreenButtonHandler
     {
         Q3EInterface q = Q3E.q3ei;
         return q != null && (q.isQ1 || q.isQ2 || q.isQ3 || q.isJA || q.isJO || q.isETW || q.isUrT
-                || q.isFTEQW || q.isWolf3D || q.isSamTFE || q.isSamTSE || q.isDOOM || q.isXash3D);
+                || q.isFTEQW || q.isWolf3D || q.isSamTFE || q.isSamTSE || q.isDOOM || q.isXash3D || q.isSource);
     }
 
     @Override
