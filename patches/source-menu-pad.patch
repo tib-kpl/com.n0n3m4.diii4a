@@ -1,18 +1,43 @@
 diff --git a/engine/engine_main.inc b/engine/engine_main.inc
-index 86272d46..c435347a 100644
+index 86272d46..8ba0cbd1 100644
 --- a/engine/engine_main.inc
 +++ b/engine/engine_main.inc
-@@ -68,6 +68,10 @@ inline void Q3E_Engine_SyncState()
- 			else if(engineVGui->IsGameUIVisible())
- 				state = STATE_MENU;
- 		}
+@@ -43,6 +43,8 @@ inline void Q3E_Engine_AnalogEvent()
+ #include "ienginetoolinternal.h"
+ 
+ extern IGameConsole *staticGameConsole;
++#include <GameUI/IGameUI.h>
++extern IGameUI *staticGameUIFuncs;
+ inline void Q3E_Engine_SyncState()
+ {
+ // Game states
+@@ -61,12 +63,21 @@ inline void Q3E_Engine_SyncState()
+ 		int state = STATE_GAME;
+ 		auto panel = engineVGui->GetPanel(PANEL_CLIENTDLL);
+ 		bool inGame = cl.IsActive() && (panel && vgui::ipanel()->IsVisible(panel));
+-		if(!inGame)
++		bool consoleVisible = staticGameConsole && staticGameConsole->IsConsoleVisible();
 +		//karin: the game UI over a level is a menu too: the pause menu, and the main menu over its background map (Half-Life 2
-+		// and its episodes; the game UI root panel is not seen as visible there, so the level's own flag)
-+		else if((engineVGui->IsGameUIVisible() || sv.IsLevelMainMenuBackground()) && !(staticGameConsole && staticGameConsole->IsConsoleVisible()))
++		// and its episodes), which neither the game UI root panel's visibility nor the client panel's tell: the main menu's own
++		bool gameUI = engineVGui->IsGameUIVisible();
++		bool mainMenu = staticGameUIFuncs && staticGameUIFuncs->IsMainMenuVisible();
++		bool background = sv.IsLevelMainMenuBackground();
++		if(!inGame && consoleVisible)
++			state = STATE_CONSOLE;
++		else if(!consoleVisible && (gameUI || mainMenu || background))
 +			state = STATE_MENU;
++		static int s_lastState = -1;
++		if(state != s_lastState)
+ 		{
+-			if(staticGameConsole && staticGameConsole->IsConsoleVisible())
+-				state = STATE_CONSOLE;
+-			else if(engineVGui->IsGameUIVisible())
+-				state = STATE_MENU;
++			Msg("Q3E state %d (in game %d, console %d, game UI %d, main menu %d, background level %d)\n", state, inGame, consoleVisible, gameUI, mainMenu, background);
++			s_lastState = state;
+ 		}
  		SyncState_f(state);
      }
- }
 diff --git a/engine/vgui_baseui_interface.cpp b/engine/vgui_baseui_interface.cpp
 index 9fa8c899..86fd7f9f 100644
 --- a/engine/vgui_baseui_interface.cpp
