@@ -616,6 +616,11 @@ public class Q3EMain extends Activity
                 intentCommand = extras.getString("command");
             }
         }
+        // the game's own controls settings, also when started by an intent with another game than the launcher's
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        Q3EPreference.SwitchGameControls(preferences, null != intentGame && !intentGame.isEmpty()
+                ? intentGame
+                : preferences.getString(Q3EPreference.pref_harm_game, Q3EGameConstants.GAME_DOOM3));
         gameHelper.InitGlobalEnv(intentGame, intentCommand);
     }
 

@@ -4,6 +4,10 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
 public final class Q3EPreference
 {
     public static final String pref_datapath                        = "q3e_datapath";
@@ -37,6 +41,80 @@ public final class Q3EPreference
     public static String GamePadKeymapKey(String game)
     {
         return pref_harm_gamepad_keymap + "@" + game;
+    }
+
+    // The settings of the launcher's Controls tab and of the controller setup, per game: their keys hold the selected
+    // game's, the other games' are in "<key>@<game>", swapped when the game changes (SwitchGameControls). The physical
+    // mouse settings (device, cursor) stay the same for all games
+    public static final String CONTROLS_GAME = "harm_controls_game"; // the game whose settings the keys hold
+    public static String[] GameControlsKeys()
+    {
+        return new String[] {
+                pref_hideonscr,
+                pref_analog,
+                pref_mapvol,
+                VOLUME_UP_KEY,
+                VOLUME_DOWN_KEY,
+                pref_2fingerlmb,
+                pref_harm_view_motion_control_gyro,
+                pref_harm_view_motion_gyro_x_axis_sens,
+                pref_harm_view_motion_gyro_y_axis_sens,
+                pref_harm_view_motion_gyro_dead_zone,
+                pref_harm_joystick_unfixed,
+                pref_harm_joystick_visible,
+                pref_harm_hide_joystick_center,
+                pref_harm_disable_mouse_button_motion,
+                pref_harm_joystick_release_range,
+                pref_harm_joystick_inner_dead_zone,
+                BUTTON_SWIPE_RELEASE_DELAY,
+                pref_harm_left_joystick_deadzone,
+                pref_harm_right_joystick_deadzone,
+                pref_harm_right_joystick_sensitivity,
+                pref_harm_dpad_as_arrow_key,
+                pref_harm_aim_assist,
+        };
+    }
+
+    // Puts the game's controls settings in their keys, after saving the previous game's; a game not set up yet starts
+    // from the previous game's
+    public static void SwitchGameControls(SharedPreferences preferences, String game)
+    {
+        if(null == game || game.isEmpty())
+            return;
+        String current = preferences.getString(CONTROLS_GAME, null);
+        if(game.equals(current))
+            return;
+        Map<String, ?> all = preferences.getAll();
+        SharedPreferences.Editor editor = preferences.edit();
+        for(String key : GameControlsKeys())
+        {
+            if(null != current && !current.isEmpty())
+                PutPreferenceValue(editor, key + "@" + current, all.get(key));
+            String gameKey = key + "@" + game;
+            if(all.containsKey(gameKey))
+                PutPreferenceValue(editor, key, all.get(gameKey));
+        }
+        editor.putString(CONTROLS_GAME, game);
+        editor.commit();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void PutPreferenceValue(SharedPreferences.Editor editor, String key, Object value)
+    {
+        if(value instanceof Boolean)
+            editor.putBoolean(key, (Boolean) value);
+        else if(value instanceof Integer)
+            editor.putInt(key, (Integer) value);
+        else if(value instanceof Long)
+            editor.putLong(key, (Long) value);
+        else if(value instanceof Float)
+            editor.putFloat(key, (Float) value);
+        else if(value instanceof String)
+            editor.putString(key, (String) value);
+        else if(value instanceof Set)
+            editor.putStringSet(key, new HashSet<>((Set<String>) value));
+        else
+            editor.remove(key); // not set: the default
     }
     public static final String pref_harm_sdl_audio_driver           = "harm_sdl_audio_driver";
     public static final String pref_harm_openal_driver              = "harm_openal_driver";

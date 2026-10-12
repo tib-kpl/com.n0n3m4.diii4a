@@ -1749,6 +1749,8 @@ public class GameLauncher extends Activity
 		V.fs_game_user.setTag(R.id.tag_color, V.fs_game_user.getCurrentTextColor());
 		V.launcher_fs_game_subdir.setTag(R.id.tag_color, V.launcher_fs_game_subdir.getCurrentTextColor());
 
+		// the Controls tab shows the game's own settings
+		Q3EPreference.SwitchGameControls(mPrefs, gameType);
 		SetGame(gameType);
 
 		V.edt_cmdline.setText(mPrefs.getString(Q3E.q3ei.GetGameCommandPreferenceKey(), Q3EGameConstants.GAME_EXECUABLE));
@@ -3901,6 +3903,10 @@ public class GameLauncher extends Activity
         preference.edit().putString(Q3EPreference.pref_harm_game, newGame).commit();
         SetGame(newGame);
 
+		// the Controls tab: the new game's own settings
+		Q3EPreference.SwitchGameControls(preference, newGame);
+		UpdateControlsUI();
+
 		//Q3E.q3ei.LoadTypeAndArgTablePreference(this);
 
         preference.edit().putString(Q3EPreference.pref_harm_game_lib, "").commit();
@@ -4111,6 +4117,25 @@ public class GameLauncher extends Activity
     private void ShowPreferenceDialog()
     {
         new DebugPreferenceFunc(this).Start(new Bundle());
+    }
+
+    // The Controls tab's widgets from the preferences, which are per game (Q3EPreference.SwitchGameControls); their
+    // listeners save them back
+    private void UpdateControlsUI()
+    {
+        SharedPreferences preference = PreferenceManager.getDefaultSharedPreferences(this);
+		V.hideonscr.setChecked(preference.getBoolean(Q3EPreference.pref_hideonscr, false));
+		V.mapvol.setChecked(preference.getBoolean(Q3EPreference.pref_mapvol, false));
+		V.secfinglmb.setChecked(preference.getBoolean(Q3EPreference.pref_2fingerlmb, false));
+		V.smoothjoy.setChecked(preference.getBoolean(Q3EPreference.pref_analog, true));
+		V.launcher_tab2_joystick_unfixed.setChecked(preference.getBoolean(Q3EPreference.pref_harm_joystick_unfixed, false));
+		V.launcher_tab2_joystick_visible.setSelection(Utility.ArrayIndexOf(getResources().getIntArray(R.array.joystick_visible_mode_values), preference.getInt(Q3EPreference.pref_harm_joystick_visible, Q3EGlobals.ONSCRREN_JOYSTICK_VISIBLE_ALWAYS)));
+		V.tab2_hide_joystick_center.setChecked(preference.getBoolean(Q3EPreference.pref_harm_hide_joystick_center, false));
+		V.tab2_disable_mouse_button_motion.setChecked(preference.getBoolean(Q3EPreference.pref_harm_disable_mouse_button_motion, false));
+		V.launcher_tab2_enable_gyro.setChecked(preference.getBoolean(Q3EPreference.pref_harm_view_motion_control_gyro, false));
+		V.button_swipe_release_delay.setText(Q3EPreference.GetStringFromInt(preference, Q3EPreference.BUTTON_SWIPE_RELEASE_DELAY, Q3EGlobals.BUTTON_SWIPE_RELEASE_DELAY_AUTO));
+		UpdateMapVol(V.mapvol.isChecked());
+		UpdateEnableGyro(V.launcher_tab2_enable_gyro.isChecked());
     }
 
     private void UpdateMapVol(boolean on)
