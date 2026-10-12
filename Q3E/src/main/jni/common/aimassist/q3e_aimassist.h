@@ -8,6 +8,8 @@
  *   - magnet: while the player aims, the view is pulled a little toward an enemy near the crosshair
  *   - tracking (adhesion): while the crosshair is on an enemy, the view follows them as the player or
  *     they move, even without look input
+ *   - centering (medium and strong): without look input, the view settles slowly on an enemy near the
+ *     crosshair
  * A fast turn, or a move away from the target, disengages it, so it never feels glued. It never turns
  * the view toward an enemy away from the crosshair.
  *
@@ -55,26 +57,26 @@ typedef struct
     float magnet; // share of the angle to the target pulled per frame, at most turnRate
     float turnRate; // max pull, degrees per second
     float tracking; // share of the target's move across the view that the view follows
+    float minCone, maxCone; // the assist zone, degrees: far enemies are a few degrees wide, the zone must not be (Jedi Outcast: 2.5 did nothing)
+    float breakout; // degrees per second of look input: above it the player turns, no assist (the right stick of Half-Life 2 turns at 700 to 2000)
+    float centering; // without look input: share of the angle to the target pulled per second, at most a third of turnRate
 } q3e_aimAssistParms_t;
 
 static const q3e_aimAssistParms_t q3e_aimAssistLevels[4] = {
-    { 0.0f, 0.0f, 0.0f, 0.0f },
-    { 0.35f, 0.30f, 120.0f, 0.45f }, // light
-    { 0.55f, 0.50f, 200.0f, 0.70f }, // medium
-    { 0.70f, 0.70f, 300.0f, 0.90f }, // strong
+    { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f },
+    { 0.40f, 0.35f, 150.0f, 0.50f, 8.0f, 15.0f, 720.0f, 0.0f }, // light
+    { 0.60f, 0.65f, 280.0f, 0.80f, 10.0f, 18.0f, 1080.0f, 1.5f }, // medium
+    { 0.80f, 0.90f, 450.0f, 1.00f, 12.0f, 22.0f, 1800.0f, 3.0f }, // strong
 };
 
-#define Q3E_AIMASSIST_BREAKOUT_SPEED 540.0f // degrees per second of look input: above it the player turns, no assist
 #define Q3E_AIMASSIST_MAX_DISTANCE 4096.0f
 #define Q3E_AIMASSIST_CONE_SCALE 6.0f // the assist zone is this many body radii around the aim point
-#define Q3E_AIMASSIST_MIN_CONE 8.0f // degrees: far enemies are a few degrees wide, the zone must not be (Jedi Outcast: 2.5 did nothing)
-#define Q3E_AIMASSIST_MAX_CONE 15.0f // degrees
 #define Q3E_AIMASSIST_FRICTION_ZONE 0.4f // the slowdown is in this inner share of the zone, the pull in all of it
 #define Q3E_AIMASSIST_TRACKING_ZONE 0.5f // the tracking is in this inner share of the zone
 #define Q3E_AIMASSIST_TRACKING_MAX_STEP 6.0f // degrees per frame: a bigger move of the target is another one, or a teleport
 #define Q3E_AIMASSIST_TRACKING_SMOOTH 18.0f // per second: how fast the view catches up with the target's move (smoothing)
 #define Q3E_AIMASSIST_MIN_STRENGTH 0.25f // at the edge of the zone
-#define Q3E_AIMASSIST_MIN_SCALE 0.4f // slowest look on target, share of the input
+#define Q3E_AIMASSIST_MIN_SCALE 0.3f // slowest look on target, share of the input
 #define Q3E_AIMASSIST_REPORT_SECONDS 10
 
 static int Q3E_AimAssist_Level(void)
@@ -185,7 +187,7 @@ static int Q3E_AimAssist_Apply(const float eye[3], const float aim[2], float del
         q3e_aimAssistStats.speed += speed;
     }
 
-    if(speed >= Q3E_AIMASSIST_BREAKOUT_SPEED)
+    if(speed >= parms->breakout)
     {
         Q3E_AimAssist_Untrack();
         return 0;
@@ -211,10 +213,10 @@ static int Q3E_AimAssist_Apply(const float eye[3], const float aim[2], float del
         angle = sqrtf(errYaw * errYaw + errPitch * errPitch);
 
         cone = atan2f(t->radius * Q3E_AIMASSIST_CONE_SCALE, dist) * (180.0f / (float)M_PI);
-        if(cone < Q3E_AIMASSIST_MIN_CONE)
-            cone = Q3E_AIMASSIST_MIN_CONE;
-        else if(cone > Q3E_AIMASSIST_MAX_CONE)
-            cone = Q3E_AIMASSIST_MAX_CONE;
+        if(cone < parms->minCone)
+            cone = parms->minCone;
+        else if(cone > parms->maxCone)
+            cone = parms->maxCone;
 
         if(angle >= cone || angle >= bestAngle)
             continue;
@@ -240,7 +242,7 @@ static int Q3E_AimAssist_Apply(const float eye[3], const float aim[2], float del
     q3e_aimAssistStats.visible++;
 
     // weaker only as the input nears a fast turn
-    relief = speed / Q3E_AIMASSIST_BREAKOUT_SPEED;
+    relief = speed / parms->breakout;
     relief = 1.0f - relief * relief;
 
     // moving away from the target fades the assist out
@@ -294,9 +296,22 @@ static int Q3E_AimAssist_Apply(const float eye[3], const float aim[2], float del
     q3e_aimAssistTrack.pitch = bestDir[0];
     q3e_aimAssistTrack.yaw = bestDir[1];
 
-    // friction and magnet, while the player aims
+    // without look input: the view settles slowly on the target (medium and strong)
     if(inLen <= 0.0f)
+    {
+        if(parms->centering > 0.0f && bestAngle > 0.05f)
+        {
+            float step = bestAngle * parms->centering * dt;
+            float maxStep = parms->turnRate * dt / 3.0f;
+            if(step > maxStep)
+                step = maxStep;
+            step *= bestStrength;
+            delta[0] += bestErr[0] / bestAngle * step;
+            delta[1] += bestErr[1] / bestAngle * step;
+            changed = 1;
+        }
         return changed;
+    }
 
     // friction, near the target only: slowing down the approach from the edge of the zone would feel like drag
     {
